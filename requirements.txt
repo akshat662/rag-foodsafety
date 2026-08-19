@@ -1,0 +1,11 @@
+# Pinned to the exact versions installed and verified in this project's venv.
+# Only packages actually imported under src/ (or scripts/), plus torch,
+# which sentence-transformers requires at runtime to load the embedding
+# and cross-encoder models even though no file imports it directly.
+
+PyMuPDF==1.28.2              # PDF text extraction (scripts/extract_check.py)
+chromadb==1.5.9              # persistent vector store (src/ingest.py, src/retrieval/vector.py)
+sentence-transformers==6.0.0 # local embeddings (BAAI/bge-small-en-v1.5) + CrossEncoder reranker
+torch==2.13.0                # required by sentence-transformers to run its models
+rank-bm25==0.2.2             # BM25 lexical retrieval (src/retrieval/bm25.py)
+groq==1.6.0                  # Groq provider SDK, imported only inside src/llm.py
