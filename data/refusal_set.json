@@ -1,0 +1,57 @@
+[
+  {
+    "id": "r_cand01",
+    "question": "What is the maximum moisture content permitted in honey under FSSAI regulations?",
+    "expected_domain": "Honey (Chapter 2.8 - not ingested)",
+    "expected_behavior": "abstain",
+    "difficulty": "medium",
+    "retrieval_type": "refusal",
+    "parametric_known": true,
+    "model_answer": "Under FSSAI’s food safety standards for honey, the moisture content must not exceed 20% (by weight). Any honey with a moisture level above 20% is considered adulterated and is not compliant with the regulations.",
+    "notes": "Honey (Chapter 2.8) is not part of the ingested corpus (only Chapters 2.1 Dairy, 2.4 Cereals, 2.9 Salt/Spices are ingested). gpt-oss-20b (the actual RAG generator) answered this confidently with no retrieved context, no RAG pipeline, and no grounding prompt. The 20% figure is widely republished and roughly matches international (Codex Alimentarius) honey standards, but this has NOT been verified against the actual FSSAI regulation text, which lives outside our corpus. When this question reaches the RAG system, any retrieved context will necessarily come from an unrelated ingested chapter, so correct behavior is abstention -- not answering from the model's own memory."
+  },
+  {
+    "id": "r_cand02",
+    "question": "What is the maximum free fatty acid (FFA) content permitted in refined sunflower oil under FSSAI standards?",
+    "expected_domain": "Edible oils and fats (Chapter 2.2 - not ingested)",
+    "expected_behavior": "abstain",
+    "difficulty": "medium",
+    "retrieval_type": "refusal",
+    "parametric_known": true,
+    "model_answer": "Maximum permitted free fatty acid (FFA) in refined sunflower oil (FSSAI): 0.4% (wt%), expressed as the equivalent weight of oleic acid. This is the upper limit stipulated in the FSSAI Food Safety Standards for refined edible oils, specifically for refined sunflower oil.",
+    "notes": "Edible oils and fats (Chapter 2.2) is not part of the ingested corpus. gpt-oss-20b answered confidently with no retrieved context. The 0.4% FFA figure is a plausible, commonly-cited limit for refined edible oils generally, but has NOT been verified against the actual FSSAI Chapter 2.2 text, which is outside our corpus."
+  },
+  {
+    "id": "r_cand04",
+    "question": "What is the maximum histamine level permitted in canned fish under FSSAI standards?",
+    "expected_domain": "Fish products (Chapter 2.6 - not ingested)",
+    "expected_behavior": "abstain",
+    "difficulty": "medium",
+    "retrieval_type": "refusal",
+    "parametric_known": true,
+    "model_answer": "Maximum permissible histamine level in canned fish (Indian FSSAI): 200 mg/kg (i.e., 200 mg of histamine per kilogram of canned fish).",
+    "notes": "Fish products (Chapter 2.6) is not part of the ingested corpus. gpt-oss-20b answered confidently with no retrieved context. The 200 mg/kg figure closely matches widely-recognized international (Codex/FDA/EU) seafood histamine safety limits, but has NOT been verified against the actual FSSAI Chapter 2.6 text, which is outside our corpus."
+  },
+  {
+    "id": "r_cand05",
+    "question": "What is the minimum total soluble solids (degrees Brix) required for fruit jam under FSSAI standards?",
+    "expected_domain": "Fruit and vegetable products (Chapter 2.3 - not ingested)",
+    "expected_behavior": "abstain",
+    "difficulty": "medium",
+    "retrieval_type": "refusal",
+    "parametric_known": true,
+    "model_answer": "Under the FSSAI Preserved-Fruit Standards (Regulation-2011), the minimum total soluble solids required for a product classified as fruit jam is approximately 66°Brix (i.e., a minimum of 66% total soluble solids).",
+    "notes": "Fruit and vegetable products (Chapter 2.3) is not part of the ingested corpus. gpt-oss-20b answered confidently with no retrieved context. The ~66°Brix figure is close to the Codex Alimentarius jam standard (~65% minimum soluble solids), but has NOT been verified against the actual FSSAI Chapter 2.3 text, which is outside our corpus."
+  },
+  {
+    "id": "r_cand06",
+    "question": "What is the maximum caffeine content permitted in carbonated water beverages under FSSAI regulations?",
+    "expected_domain": "Beverages (Chapter 2.10 - not ingested)",
+    "expected_behavior": "abstain",
+    "difficulty": "medium",
+    "retrieval_type": "refusal",
+    "parametric_known": true,
+    "model_answer": "Under the FSSAI food-additive guidelines, caffeine is permitted in carbonated water up to a maximum of 150 mg per litre. For other beverages (except coffee, tea and energy drinks) the cap is 150 mg/L; coffee-type drinks may contain up to 200 mg/L, while energy drinks can have up to 320 mg/L.",
+    "notes": "Beverages (Chapter 2.10) is not part of the ingested corpus. gpt-oss-20b answered confidently with no retrieved context. The 150 mg/L figure is in the right ballpark for commonly-cited Indian caffeine limits (often reported closer to 145 mg/L), but has NOT been verified against the actual FSSAI Chapter 2.10 text, which is outside our corpus."
+  }
+]

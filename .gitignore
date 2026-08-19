@@ -1,5 +1,6 @@
 .env
 chroma_db/
+data/chroma/
 logs/
 __pycache__/
 venv/
