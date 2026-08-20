@@ -10,12 +10,12 @@ so reranking needs no new dependency and makes no external API call.
 
 from sentence_transformers import CrossEncoder
 
+from src.config import RETRIEVAL
 from src.retrieval.vector import Chunk
 
 # ~2ms/pair on CPU, well within budget for the small candidate pools this
 # corpus produces; the same model choice as the project's original plan.
 MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-DEFAULT_TOP_K = 3
 
 _model: CrossEncoder | None = None
 
@@ -28,14 +28,16 @@ def _get_model() -> CrossEncoder:
     return _model
 
 
-def rerank(query: str, candidates: list[Chunk], k: int = DEFAULT_TOP_K) -> list[Chunk]:
+def rerank(query: str, candidates: list[Chunk], k: int = RETRIEVAL.k_final) -> list[Chunk]:
     """Rerank `candidates` by a cross-encoder relevance score for (query, chunk.text).
 
     Unlike embedding similarity, the cross-encoder attends over the query
     and each candidate's full text jointly in one forward pass, rather than
     comparing two independently-computed vectors. Deterministic: inference
     is a fixed forward pass with no sampling, so identical inputs always
-    produce identical scores and ordering.
+    produce identical scores and ordering. `k` defaults to
+    src.config.RETRIEVAL.k_final, the same final context size every
+    ablation arm uses.
     """
     if not candidates:
         return []

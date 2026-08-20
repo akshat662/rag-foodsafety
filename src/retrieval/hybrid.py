@@ -9,13 +9,9 @@ are implemented separately.
 
 from dataclasses import dataclass
 
+from src.config import RETRIEVAL
 from src.retrieval import bm25, vector
 from src.retrieval.vector import Chunk
-
-# Size of each retriever's candidate pool before fusion.
-DEFAULT_CANDIDATE_K = 50
-# RRF's smoothing constant: RRF_score(d) = sum(1 / (rrf_k + rank(d))).
-DEFAULT_RRF_K = 60
 
 
 def _chunk_key(chunk: Chunk) -> str:
@@ -41,16 +37,19 @@ class _Fused:
 
 def retrieve(
     query: str,
-    k: int,
-    candidate_k: int = DEFAULT_CANDIDATE_K,
-    rrf_k: int = DEFAULT_RRF_K,
+    k: int = RETRIEVAL.k_final,
+    candidate_k: int = RETRIEVAL.candidate_k,
+    rrf_k: int = RETRIEVAL.rrf_k,
 ) -> list[Chunk]:
     """Return the top-k chunks by Reciprocal Rank Fusion of dense + BM25 results.
 
-    Each retriever supplies its own top-`candidate_k` ranked list. A chunk's
-    RRF score is the sum of `1 / (rrf_k + rank)` over every list it appears
-    in, using each retriever's 1-indexed rank only — never its raw score,
-    so vector distances and BM25 scores are never compared or combined.
+    Each retriever supplies its own top-`candidate_k` ranked list (the same
+    pool size for both dense and BM25). A chunk's RRF score is the sum of
+    `1 / (rrf_k + rank)` over every list it appears in, using each
+    retriever's 1-indexed rank only — never its raw score, so vector
+    distances and BM25 scores are never compared or combined. Defaults come
+    from src.config.RETRIEVAL, the single source of truth shared by every
+    ablation arm.
     """
     ranked_lists = (
         vector.retrieve(query, candidate_k),

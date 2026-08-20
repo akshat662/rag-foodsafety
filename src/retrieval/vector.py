@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from chromadb import Collection
 
+from src.config import RETRIEVAL
 from src.ingest import get_collection
 
 
@@ -43,12 +44,15 @@ def _get_cached_collection() -> Collection:
     return _collection
 
 
-def retrieve(query: str, k: int) -> list[Chunk]:
+def retrieve(query: str, k: int = RETRIEVAL.k_final) -> list[Chunk]:
     """Return the top-k chunks from `fssai_regulations` most similar to `query`.
 
     `query` is embedded locally by the collection's configured embedding
     function (BAAI/bge-small-en-v1.5, the same model src/ingest.py used to
-    embed documents) — no external API call is made.
+    embed documents) — no external API call is made. `k` defaults to
+    src.config.RETRIEVAL.k_final, the same final context size every
+    ablation arm uses; callers pass a larger `k` explicitly when using this
+    as a first-stage candidate pool (e.g. inside hybrid.retrieve).
     """
     collection = _get_cached_collection()
     results = collection.query(
