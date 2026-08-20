@@ -67,6 +67,7 @@ class GroqLLMClient(LLMClient):
             response = self._get_client().chat.completions.create(
                 model=self.provider_config.model,
                 messages=messages,
+                **_temperature_kwargs(self.provider_config),
             )
             return response.choices[0].message.content
 
@@ -82,6 +83,7 @@ class GroqLLMClient(LLMClient):
                 model=self.provider_config.model,
                 messages=messages,
                 response_format={"type": "json_object"},
+                **_temperature_kwargs(self.provider_config),
             )
             return json.loads(response.choices[0].message.content)
 
@@ -162,3 +164,13 @@ def _build_messages(
 
 def _estimate_message_tokens(messages: list[dict[str, str]]) -> int:
     return sum(estimate_tokens(m["content"]) for m in messages)
+
+
+def _temperature_kwargs(provider_config: ProviderConfig) -> dict:
+    """Only pass `temperature` when the config sets one explicitly, so a
+    provider config that leaves it unset (e.g. the not-yet-implemented judge)
+    keeps the provider's own default rather than us inventing one here.
+    """
+    if provider_config.temperature is None:
+        return {}
+    return {"temperature": provider_config.temperature}

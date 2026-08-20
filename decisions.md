@@ -103,6 +103,22 @@ unverified against the real regulation text.
 No retrieval, reranking, generation-with-context, or RAGAS was run against
 these questions before freezing.
 
+## 2026-08-20 — Deterministic generation for Day 3 Stage 1
+
+`src.config.ProviderConfig` gained a `temperature: float | None = None` field.
+`GENERATOR` (groq / `openai/gpt-oss-20b`) now sets `temperature=0.0`.
+`GroqLLMClient` (src/llm.py) passes `temperature=...` through to both
+`generate` and `generate_structured` Groq calls whenever the active
+`ProviderConfig.temperature` is not `None` (a `None` config, e.g. the
+not-yet-implemented `JUDGE`, keeps the provider's own default untouched).
+
+Added because `eval/run_generation.py` (Day 3 Stage 1) requires
+reproducible runs: re-running generation for the same (question, arm) pair
+must yield the same answer, or run artifacts and their git-hash provenance
+stop being comparable across re-runs. `GEN_PROVIDER`/`GEN_MODEL` are
+unchanged (groq / `openai/gpt-oss-20b`); the OpenAI-judge / same-lab
+question (Day 3 plan Step 4) is still open and unaffected by this change.
+
 ## 2026-08-19 — Evaluation set frozen (15 questions)
 
 15 eval questions written to `data/qa_set.json`: 4 lexical / 3 semantic /

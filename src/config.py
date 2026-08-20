@@ -20,13 +20,21 @@ class ProviderConfig:
     provider: str
     model: str
     rate_limits: RateLimits | None = None
+    # Sampling temperature for generation calls. None leaves the provider's
+    # own default in place (e.g. for a judge where determinism doesn't matter
+    # the same way). Set explicitly to 0 for reproducible eval runs.
+    temperature: float | None = None
 
 
 # Generation.
+# temperature=0 (lowest the Groq API allows) so the Day 3 ablation is
+# reproducible: re-running generation for the same (question, arm) must
+# yield the same answer, or run artifacts stop being comparable.
 GENERATOR = ProviderConfig(
     provider="groq",
     model="openai/gpt-oss-20b",
     rate_limits=RateLimits(rpm=30, tpm=8000, rpd=1000, tpd=200000),
+    temperature=0.0,
 )
 
 # RAGAS judging.
