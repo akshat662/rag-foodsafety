@@ -119,6 +119,44 @@ stop being comparable across re-runs. `GEN_PROVIDER`/`GEN_MODEL` are
 unchanged (groq / `openai/gpt-oss-20b`); the OpenAI-judge / same-lab
 question (Day 3 plan Step 4) is still open and unaffected by this change.
 
+## 2026-08-20 — Reportable generator model: Qwen
+
+`src.config.GENERATOR.model` changed from `openai/gpt-oss-20b` (used for
+the first Stage 1 smoke test) to `qwen/qwen3.6-27b`, both on Groq. Provider
+stays `groq`; `temperature` stays `0.0`; no other config, retrieval
+parameter, prompt, or frozen data file changed.
+
+Reason: the RAGAS judge (`src.config.JUDGE`) will be an OpenAI model.
+Keeping `gpt-oss-20b` (OpenAI's open-weight family) as the generator would
+put the generator and judge in the same model family, reviving a
+same-lab/self-preference-bias criticism of the eval (Day 3 plan, Step 4).
+Qwen gives clean separation: generator (Alibaba/Qwen) and judge (OpenAI)
+are different labs.
+
+`qwen/qwen3.6-27b` is currently a Groq **preview** model — subject to
+change/deprecation without the stability guarantee of a GA model. Verified
+live against the project's Groq account before switching: present in
+`GET /openai/v1/models`, and a completion call succeeded with
+`x-ratelimit-limit-requests: 1000` / `x-ratelimit-limit-tokens: 8000`,
+matching the RPD/TPM already configured in `RateLimits` for `GENERATOR` —
+no rate-limit values were changed. Free-plan daily budget used for
+planning: **200K TPD**, same allowance as `gpt-oss-20b` (per Groq account
+limits, not independently re-verified via a header — Groq's rate-limit
+headers exposed request/minute and token/minute caps but not a daily-token
+header).
+
+Observation for the Day 3 run (not a blocking issue): `qwen/qwen3.6-27b` is
+a reasoning model that emits a `<think>...</think>` block in
+`message.content` on a plain free-text completion. The pipeline is
+unaffected because `src.generate.generate` always calls
+`llm.generate_structured` (`response_format: json_object`), and under
+JSON mode the verified response content was clean, directly-parseable
+JSON with no reasoning leakage. Reasoning does consume hidden completion
+tokens the rate limiter's pre-call token estimate (prompt-only) doesn't
+account for, which may cause more real 429 backoff during the 45-pair run
+than under `gpt-oss-20b` — expected to be absorbed by the existing
+retry/backoff, not a correctness risk.
+
 ## 2026-08-19 — Evaluation set frozen (15 questions)
 
 15 eval questions written to `data/qa_set.json`: 4 lexical / 3 semantic /

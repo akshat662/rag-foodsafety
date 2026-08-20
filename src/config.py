@@ -30,9 +30,12 @@ class ProviderConfig:
 # temperature=0 (lowest the Groq API allows) so the Day 3 ablation is
 # reproducible: re-running generation for the same (question, arm) must
 # yield the same answer, or run artifacts stop being comparable.
+# Model is Qwen (not OpenAI's gpt-oss) so the generator and the eventual
+# OpenAI RAGAS judge come from different model families — see decisions.md,
+# 2026-08-20, "Reportable generator model: Qwen".
 GENERATOR = ProviderConfig(
     provider="groq",
-    model="openai/gpt-oss-20b",
+    model="qwen/qwen3.6-27b",
     rate_limits=RateLimits(rpm=30, tpm=8000, rpd=1000, tpd=200000),
     temperature=0.0,
 )
