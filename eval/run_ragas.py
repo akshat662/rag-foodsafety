@@ -93,24 +93,24 @@ PROPOSED_JUDGE_REASONING_EFFORT = "minimal"
 # did not require regenerating input-token counts.
 TOKEN_ENCODING_NAME = "o200k_base"
 
-# GPT-5-family models are reasoning models: even at reasoning_effort=
-# "minimal", OpenAI's own docs state reasoning tokens are still produced
-# ("adaptively, using fewer tokens for simpler tasks") and ARE billed as
-# output tokens despite being invisible in the response content. This is
-# an assumed per-call reasoning-token overhead for planning purposes only
-# -- NOT a measured value, since no gpt-5-mini call has been made. Anchored
-# loosely against our own live observation of a different reasoning model
-# (Qwen3.6, on Groq: ~200 reasoning tokens for a trivial one-word request
-# with no low-effort control available at all -- see Stage 1's Qwen
-# smoke-test notes), scaled down substantially because (a) "minimal" is
-# specifically designed to suppress reasoning depth and (b) our per-call
-# tasks are short, templated, structured classification/extraction, not
-# open-ended -- both push toward the low end of that anchor, not the high
-# end. Reported SEPARATELY from visible-JSON output tokens in the dry-run
-# report (not blended into one number) precisely so this assumption is
-# auditable and easy to replace once the pilot reports real
-# usage.completion_tokens_details.reasoning_tokens.
-REASONING_TOKENS_PER_CALL_ASSUMPTION = 100
+# UPDATED 2026-08-21 from the 6-sample pilot's MEASURED usage: all 24
+# successful (question, arm, metric) judge calls -- Faithfulness, Answer
+# Relevancy, Context Precision, Context Recall -- reported
+# usage_metadata.output_token_details.reasoning == 0 at
+# reasoning_effort="minimal", with zero exceptions (see
+# runs/ragas_pilot_20260821_101134/scores.jsonl). The original value of
+# 100 (see decisions.md, 2026-08-20) was a pre-pilot planning assumption,
+# not a measurement, and it materially overstated cost: pilot actual cost
+# ($0.0234) came in ~37% under the pre-call estimate that used it
+# ($0.0370), almost entirely because of this one number. Set to 0 now that
+# real evidence exists. Caveat: the pilot covered only 2 of 15 questions
+# (q01, q02 -- both single-clause sibling_disambiguation/lexical
+# questions); harder multi-hop questions (q13-q15, needing two source
+# clauses) were not exercised and could plausibly push some reasoning
+# tokens above zero during the full 45-pair run. The real run should keep
+# recording actual reasoning tokens per call (already wired via
+# _UsageCapture) rather than trusting this constant blindly.
+REASONING_TOKENS_PER_CALL_ASSUMPTION = 0
 
 # RAGAS's own default (3) trades a little output-token cost for averaging
 # over 3 reverse-engineered questions per answer. Set to 1 here -- NOT
@@ -545,19 +545,66 @@ def _load_completed_scores(output_path: Path) -> set[tuple[str, str, str]]:
     return completed
 
 
+class _UsageCapture:
+    """LangChain callback handler capturing the real token usage of the most
+    recent LLM call made through it. Passed per-call via ragas's own
+    `callbacks=` parameter on single_turn_score/ascore, so usage is
+    attributed to exactly the (question, arm, metric) call that used it,
+    not blended across a whole run.
+    """
+
+    def __init__(self):
+        self.usage: dict | None = None
+
+    def __call__(self):
+        from langchain_core.callbacks import BaseCallbackHandler
+
+        outer = self
+
+        class Handler(BaseCallbackHandler):
+            def on_llm_end(self, response, **kwargs):
+                try:
+                    gen = response.generations[0][0]
+                    usage = getattr(getattr(gen, "message", None), "usage_metadata", None)
+                    if usage:
+                        outer.usage = dict(usage)
+                except Exception:  # noqa: BLE001
+                    pass
+
+        return Handler()
+
+
+def _actual_tokens_from_usage(usage: dict | None) -> tuple[int, int, int]:
+    """(input_tokens, visible_output_tokens, reasoning_tokens) from a
+    LangChain usage_metadata dict. output_tokens there is the TOTAL
+    completion tokens billed (visible content + hidden reasoning combined),
+    matching OpenAI's own accounting -- see decisions.md, 2026-08-21 pilot
+    entry, for the calibration call that established this shape.
+    """
+    if not usage:
+        return 0, 0, 0
+    input_tokens = usage.get("input_tokens", 0)
+    output_total = usage.get("output_tokens", 0)
+    reasoning = usage.get("output_token_details", {}).get("reasoning", 0)
+    return input_tokens, max(0, output_total - reasoning), reasoning
+
+
 def run_real_evaluation(
     stage1_run_id: str,
     ragas_run_id: str,
     judge_model: str,
     reasoning_effort: str | None = None,
+    question_ids: set[str] | None = None,
     max_retries: int = MAX_RETRIES,
     budget_cap_usd: float = BUDGET_CAP_USD,
-) -> None:
-    """The actual paid judging run. Not invoked by this Stage 2 infra task.
+) -> dict:
+    """The actual paid judging run.
 
     Requires OPENAI_API_KEY. Imports openai/langchain_openai lazily, inside
     this function only, so `python -m eval.run_ragas --dry-run` never
     imports them and can run with zero API key and zero network access.
+    `question_ids`, when given, restricts to those Stage 1 rows only (the
+    pilot subset) -- all three arms for each included question_id still run.
     """
     import os
 
@@ -567,8 +614,18 @@ def run_real_evaluation(
             "refusing to proceed without an explicit key."
         )
 
-    from openai import OpenAI
-    from ragas.embeddings import HuggingFaceEmbeddings
+    # NOT ragas.embeddings.HuggingFaceEmbeddings (capital F): that's the
+    # newer BaseRagasEmbedding class (embed_text() only). The legacy
+    # AnswerRelevancy metric requires the older BaseRagasEmbeddings
+    # interface (embed_query()/embed_documents()) -- confirmed live during
+    # this pilot's second attempt, which failed every answer_relevancy call
+    # with AttributeError: 'HuggingFaceEmbeddings' object has no attribute
+    # 'embed_query'. LangchainEmbeddingsWrapper adapts any langchain
+    # Embeddings object to that older interface; langchain_community's
+    # HuggingFaceEmbeddings runs bge-small locally via sentence-transformers,
+    # same as everywhere else in this project -- no OpenAI embedding calls.
+    from langchain_community.embeddings import HuggingFaceEmbeddings as LCHuggingFaceEmbeddings
+    from ragas.embeddings import LangchainEmbeddingsWrapper
     from ragas.llms import LangchainLLMWrapper
     from langchain_openai import ChatOpenAI
 
@@ -579,16 +636,46 @@ def run_real_evaluation(
     run_dir.mkdir(parents=True, exist_ok=True)
     output_path = run_dir / "scores.jsonl"
 
-    # Reasoning models (gpt-5-family) take reasoning_effort, not temperature
-    # (they either reject or ignore a sampling temperature). Non-reasoning
-    # judge candidates (gpt-4o-mini, gpt-4.1-*) take temperature=0 instead,
-    # for the same determinism reasoning GENERATOR uses it.
+    stage1_git_commit = (RUNS_DIR / stage1_run_id / "git_commit.txt").read_text().strip()
+    run_config = {
+        "run_id": ragas_run_id,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "git_commit": _git_commit(),
+        "ragas_version": ragas.__version__,
+        "judge_model": judge_model,
+        "judge_reasoning_effort": reasoning_effort or (PROPOSED_JUDGE_REASONING_EFFORT if _is_reasoning_model(judge_model) else None),
+        "metrics": {
+            "faithfulness": "ragas.metrics.Faithfulness(), defaults",
+            "answer_relevancy": f"ragas.metrics.AnswerRelevancy(strictness={ANSWER_RELEVANCY_STRICTNESS})",
+            "context_precision": "ragas.metrics.ContextPrecision() -- reference-based",
+            "context_recall": "ragas.metrics.ContextRecall() -- reference-based",
+        },
+        "embedding_model_for_answer_relevancy": EMBEDDING_MODEL_NAME,
+        "source_stage1_run_id": stage1_run_id,
+        "source_stage1_git_commit": stage1_git_commit,
+        "pilot_question_ids": sorted(question_ids) if question_ids else None,
+        "budget_cap_usd": budget_cap_usd,
+    }
+    (run_dir / "config.json").write_text(json.dumps(run_config, indent=2))
+    (run_dir / "git_commit.txt").write_text(_git_commit() + "\n")
+
+    # Reasoning models (gpt-5-family) take reasoning_effort, not temperature.
+    # gpt-5-mini goes further: it REJECTS any temperature value other than
+    # its default (1) with a 400 (confirmed live during this pilot's first,
+    # failed attempt -- see decisions.md, 2026-08-21 pilot entry). RAGAS's
+    # own LangchainLLMWrapper.generate() has a hardcoded temperature=0.01
+    # default it applies to every call regardless of how the ChatOpenAI
+    # object was constructed, so omitting temperature from chat_kwargs
+    # alone is not enough -- bypass_temperature=True is ragas's documented
+    # escape hatch (LangchainLLMWrapper.__init__) for exactly this case:
+    # it skips ragas's temperature override entirely, leaving the
+    # judge model to use its own default.
     if _is_reasoning_model(judge_model):
         chat_kwargs = {"model": judge_model, "reasoning_effort": reasoning_effort or "minimal"}
     else:
         chat_kwargs = {"model": judge_model, "temperature": 0}
-    llm = LangchainLLMWrapper(ChatOpenAI(**chat_kwargs))
-    embeddings = HuggingFaceEmbeddings(model=EMBEDDING_MODEL_NAME)
+    llm = LangchainLLMWrapper(ChatOpenAI(**chat_kwargs), bypass_temperature=_is_reasoning_model(judge_model))
+    embeddings = LangchainEmbeddingsWrapper(LCHuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME))
 
     metrics = build_metrics()
     for metric in metrics.values():
@@ -597,30 +684,51 @@ def run_real_evaluation(
             metric.embeddings = embeddings
 
     rows = load_stage1_rows(stage1_run_id)
+    if question_ids is not None:
+        rows = [r for r in rows if r["question_id"] in question_ids]
     qa = load_qa_lookup()
     enc = _encoding()
     completed = _load_completed_scores(output_path)
 
+    n_attempted = 0
+    n_skipped = 0
+    n_api_calls = 0
     stopped_early = False
     with output_path.open("a") as out:
         for row in rows:
+            # estimate_pair always computes all 4 metrics' estimates in one
+            # pass (it doesn't accept a subset) -- compute once per row, not
+            # once per metric, and index into the result below.
+            row_estimates = estimate_pair(row, qa, metrics, enc, judge_model=judge_model)
             for metric_name, metric in metrics.items():
                 key = (row["question_id"], row["arm"], metric_name)
                 if key in completed:
+                    n_skipped += 1
                     continue
 
-                est = estimate_pair(row, qa, {metric_name: metric}, enc, judge_model=judge_model)[metric_name]
+                est = row_estimates[metric_name]
                 if not guard.can_afford(est.input_tokens, est.output_tokens, est.reasoning_tokens):
                     stopped_early = True
                     break
 
-                result = _score_one_metric(row, qa, metric_name, metric, max_retries)
-                tokens = result.get("tokens", {})
-                guard.record(
-                    tokens.get("input", est.input_tokens),
-                    tokens.get("output", est.output_tokens),
-                    tokens.get("reasoning", est.reasoning_tokens),
-                )
+                result = _score_one_metric(row, qa, metric_name, metric, max_retries, pricing, est)
+                n_attempted += 1
+                n_api_calls += result.get("attempts", 1)
+                # Only record real spend for a call that actually succeeded
+                # and returned billable usage. A failed call in this harness
+                # means every attempt errored (typically a request-level
+                # rejection before OpenAI processes any tokens, as with the
+                # gpt-5-mini temperature 400 hit during this pilot's first
+                # attempt) -- charging the pre-call ESTIMATE against the
+                # budget for a request that was never billed would silently
+                # inflate spent_usd with money that was never spent.
+                if result["status"] == "ok":
+                    tokens = result.get("tokens", {})
+                    guard.record(
+                        tokens.get("input", est.input_tokens),
+                        tokens.get("output_visible", est.output_tokens),
+                        tokens.get("reasoning", est.reasoning_tokens),
+                    )
                 out.write(json.dumps(result) + "\n")
                 out.flush()
             if stopped_early:
@@ -630,11 +738,29 @@ def run_real_evaluation(
         print(f"STOPPED: {guard.stop_reason}")
         print(f"Partial results preserved in {output_path}; re-run with the same --run-id to resume.")
 
+    return {
+        "run_dir": str(run_dir),
+        "n_attempted": n_attempted,
+        "n_skipped": n_skipped,
+        "n_api_calls": n_api_calls,
+        "spent_usd": round(guard.spent_usd, 6),
+        "stopped_early": stopped_early,
+        "stop_reason": guard.stop_reason,
+    }
 
-def _score_one_metric(row: dict, qa: dict, metric_name: str, metric: Any, max_retries: int) -> dict:
-    """One (question, arm, metric) judge call with retry-on-failure and
-    latency/error recording. Placeholder for the real-run path -- exercised
-    only once OPENAI_API_KEY is present and a non-dry-run invocation is made.
+
+def _score_one_metric(
+    row: dict,
+    qa: dict,
+    metric_name: str,
+    metric: Any,
+    max_retries: int,
+    pricing: dict[str, float],
+    est: "MetricCallEstimate",
+) -> dict:
+    """One (question, arm, metric) judge call with retry-on-failure, real
+    token-usage capture (via a per-call LangChain callback), and both
+    estimated (dry-run) and actual cost recorded side by side.
     """
     from ragas import SingleTurnSample
 
@@ -649,9 +775,14 @@ def _score_one_metric(row: dict, qa: dict, metric_name: str, metric: Any, max_re
     t0 = time.monotonic()
     last_exc: Exception | None = None
     for attempt in range(1, max_retries + 1):
+        capture = _UsageCapture()
+        handler = capture()
         try:
-            score = metric.single_turn_score(sample)
+            score = metric.single_turn_score(sample, callbacks=[handler])
             t1 = time.monotonic()
+            in_tok, out_vis_tok, reason_tok = _actual_tokens_from_usage(capture.usage)
+            actual_cost = _cost_usd(in_tok, out_vis_tok, reason_tok, pricing) if capture.usage else None
+            estimated_cost = _cost_usd(est.input_tokens, est.output_tokens, est.reasoning_tokens, pricing)
             return {
                 "question_id": row["question_id"],
                 "arm": row["arm"],
@@ -660,6 +791,14 @@ def _score_one_metric(row: dict, qa: dict, metric_name: str, metric: Any, max_re
                 "score": score,
                 "attempts": attempt,
                 "latency_ms": round((t1 - t0) * 1000, 1),
+                "tokens": {
+                    "input": in_tok,
+                    "output_visible": out_vis_tok,
+                    "reasoning": reason_tok,
+                    "source": "actual" if capture.usage else "estimate-fallback",
+                },
+                "estimated_cost_usd": round(estimated_cost, 6),
+                "actual_cost_usd": round(actual_cost, 6) if actual_cost is not None else None,
             }
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
@@ -683,26 +822,45 @@ def main() -> None:
     parser.add_argument("--stage1-run", required=True, help="Source Stage 1 run_id under runs/.")
     parser.add_argument("--run-id", default=None, help="Ragas run id under runs/. Default: new timestamp.")
     parser.add_argument("--dry-run", action="store_true", help="Estimate cost only. No API calls, no key needed.")
+    parser.add_argument(
+        "--real", action="store_true", help="Execute the actual (paid) judging run. Requires OPENAI_API_KEY."
+    )
     parser.add_argument("--judge-model", default=PROPOSED_JUDGE_MODEL, choices=list(JUDGE_MODEL_PRICING_PER_1M))
+    parser.add_argument("--reasoning-effort", default=PROPOSED_JUDGE_REASONING_EFFORT)
     parser.add_argument("--pilot", action="store_true", help="Restrict --dry-run to the 6-pair pilot subset only.")
+    parser.add_argument(
+        "--pilot-questions",
+        default=None,
+        help="Comma-separated question_ids to restrict --real to (e.g. q01,q02). All 3 arms still run for each.",
+    )
     parser.add_argument("--budget-cap", type=float, default=BUDGET_CAP_USD)
     args = parser.parse_args()
+
+    if args.dry_run and args.real:
+        raise SystemExit("--dry-run and --real are mutually exclusive.")
+    if not args.dry_run and not args.real:
+        raise SystemExit("Specify exactly one of --dry-run or --real.")
 
     run_id = args.run_id or f"ragas_{time.strftime('%Y%m%d_%H%M%S')}"
     run_dir = RUNS_DIR / run_id
 
-    if not args.dry_run:
-        raise SystemExit(
-            "Refusing to run the real (paid) evaluation from this CLI invocation. "
-            "This Stage 2 infrastructure task is dry-run only; call "
-            "run_real_evaluation(...) directly and deliberately once authorized."
-        )
+    if args.dry_run:
+        report = dry_run_estimate(args.stage1_run, args.judge_model)
+        write_dry_run_artifacts(run_dir, report, args.stage1_run)
+        print(json.dumps(report, indent=2))
+        print(f"\nWritten to {run_dir}/")
+        return
 
-    report = dry_run_estimate(args.stage1_run, args.judge_model)
-    write_dry_run_artifacts(run_dir, report, args.stage1_run)
-
-    print(json.dumps(report, indent=2))
-    print(f"\nWritten to {run_dir}/")
+    question_ids = set(args.pilot_questions.split(",")) if args.pilot_questions else None
+    summary = run_real_evaluation(
+        stage1_run_id=args.stage1_run,
+        ragas_run_id=run_id,
+        judge_model=args.judge_model,
+        reasoning_effort=args.reasoning_effort,
+        question_ids=question_ids,
+        budget_cap_usd=args.budget_cap,
+    )
+    print(json.dumps(summary, indent=2))
 
 
 if __name__ == "__main__":

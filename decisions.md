@@ -308,3 +308,85 @@ reasoning-token overhead): 315 calls, ~672K input / ~10K visible-output /
 full report in `runs/ragas_20260821_094707/dry_run_estimate.json`. No
 OpenAI API call was made to produce this; `OPENAI_API_KEY` was confirmed
 absent from the shell environment before running the estimator.
+
+## 2026-08-21 — RAGAS 6-sample pilot: two real bugs found and fixed, cost model corrected
+
+Ran the real (paid) pilot: q01+q02 x arms A/B/C x 4 metrics = 24 judge
+calls against gpt-5-mini, reasoning_effort=minimal, over the frozen
+`stage1_20260820_215228` run. Run directory:
+`runs/ragas_pilot_20260821_101134/`.
+
+**Two real infrastructure bugs surfaced and were fixed before any
+successful call completed** — this is exactly why the plan mandates a
+pilot before the full run:
+
+1. **Temperature rejection.** First attempt: all 24 calls failed with
+   `400 Unsupported value: 'temperature' does not support 0.01 with this
+   model`. Root cause: `eval/run_ragas.py` never set `temperature` on the
+   `ChatOpenAI` object for reasoning models, but RAGAS's own
+   `LangchainLLMWrapper.generate()` has a hardcoded `temperature=0.01`
+   default it applies to every call regardless of how the wrapped
+   langchain LLM was constructed — confirmed by reading
+   `ragas.llms.base.LangchainLLMWrapper.agenerate_text`'s source directly.
+   gpt-5-mini accepts only its default temperature (1). Fixed with RAGAS's
+   own documented escape hatch: `LangchainLLMWrapper(..., bypass_temperature=True)`
+   for reasoning-model judges. **No tokens were billed for this failure**
+   — a 400 on an unsupported parameter is rejected before OpenAI processes
+   any tokens, confirmed by inspecting the request-level error shape.
+2. **Embeddings interface mismatch.** Second attempt: Faithfulness, Context
+   Precision, and Context Recall all succeeded (18/24), but every
+   `answer_relevancy` call failed with
+   `AttributeError: 'HuggingFaceEmbeddings' object has no attribute 'embed_query'`.
+   Root cause: `ragas.embeddings.HuggingFaceEmbeddings` (capital F) is
+   ragas 0.4.3's newer `BaseRagasEmbedding` class (`embed_text()` only);
+   the legacy `AnswerRelevancy` metric requires the older
+   `BaseRagasEmbeddings` interface (`embed_query()`/`embed_documents()`).
+   Fixed by wrapping `langchain_community.embeddings.HuggingFaceEmbeddings`
+   (still local bge-small, still zero OpenAI embedding calls) in
+   `ragas.embeddings.LangchainEmbeddingsWrapper`, which adapts any
+   langchain `Embeddings` object to the interface `AnswerRelevancy` expects.
+3. A third bug (accounting, not execution): `guard.record()` was
+   unconditionally charging the pre-call token *estimate* against the
+   budget even when a call failed every retry — meaning a run's reported
+   `spent_usd` could include money that was never actually billed. Fixed
+   to record spend only for `status == "ok"` results with real captured
+   usage.
+
+Stale error rows from these two runs remain in `scores.jsonl` (append-only
+by design — see eval/run_generation.py's identical convention from Stage
+1): 30 error rows plus the 24 final `status: "ok"` rows, one per
+(question_id, arm, metric) triple, zero duplicates among the successful
+set.
+
+**Resume verified twice**: after the embeddings fix, re-running the exact
+same pilot command skipped all 18 already-`ok` rows and attempted only the
+6 previously-failing `answer_relevancy` calls (all succeeded, 0 retries).
+Running the identical command again afterward produced `0 attempted, 24
+skipped, 0 api calls, $0.00 spent` — confirmed no duplicate billing on
+resume.
+
+**Actual usage vs. dry-run estimate** (24 successful calls):
+
+| | Estimated (pre-call) | Actual (measured) |
+|---|---|---|
+| Input tokens | — | 74,173 |
+| Visible output tokens | — | 2,435 |
+| Reasoning tokens | (100/call assumed) | **0** (every single call) |
+| Total cost | $0.0370 | **$0.0234** |
+
+The gap is almost entirely the reasoning-token assumption:
+`REASONING_TOKENS_PER_CALL_ASSUMPTION` updated from 100 to **0**, based on
+real measured evidence (all 24 calls, all 4 metrics, reported
+`output_token_details.reasoning == 0`). Caveat carried into the code
+comment: the pilot only covered 2 of 15 questions (both single-clause,
+not multi-hop) — the full run should keep recording actual reasoning
+tokens per call rather than assume 0 is guaranteed to hold everywhere.
+
+**Corrected full-45 projection**: re-running the dry-run estimator with
+the updated assumption gives **$0.1882** (worst-case $0.3764), which lines
+up closely with the pilot-actual linear projection (`$0.0234 / 6 x 45` =
+$0.1756) — the two independent methods now agree within ~7%, both
+comfortably inside the $2-3 budget.
+
+Budget guard did not trigger at any point across all three real
+invocations (`stopped_early: false` every time).
