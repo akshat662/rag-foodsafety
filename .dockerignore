@@ -1,0 +1,27 @@
+# Never sent to the Docker build context.
+.git/
+.env
+.env.example
+venv/
+__pycache__/
+*.pyc
+.cache/
+.DS_Store
+
+# Runtime/evaluation artifacts -- not needed to serve the app, and large
+# enough not to want in the build context.
+runs/
+logs/
+reports/
+
+# Raw/intermediate ingestion inputs -- the container ships the already-built
+# data/chroma/ vector store (see Dockerfile), not the PDFs/text it was built
+# from.
+data/raw/
+data/processed/
+data/.DS_Store
+
+# Dev-only tooling not needed by the served app.
+tests/
+scripts/
+docs/

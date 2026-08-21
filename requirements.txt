@@ -18,3 +18,11 @@ langchain-openai==1.1.9      # ragas's LLM wrapper for the OpenAI judge (eval/ru
 # langchain-community 0.4.x removed outright (see decisions.md, 2026-08-21). 0.3.31 is
 # the last release that still has it; ragas import fails on 0.4.x without this pin.
 langchain-community==0.3.31
+
+# Day 4: FastAPI serving layer (app/api.py, app/schemas.py, app/auth.py).
+# See requirements-api.txt for the minimal subset of the above actually
+# needed to run the served app in Docker (excludes ragas/openai/langchain-*/
+# tiktoken/PyMuPDF, which are Stage 2 evaluation-only and never imported by
+# the request path app/api.py serves).
+fastapi==0.141.1
+uvicorn==0.52.4

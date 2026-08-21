@@ -390,3 +390,77 @@ comfortably inside the $2-3 budget.
 
 Budget guard did not trigger at any point across all three real
 invocations (`stopped_early: false` every time).
+
+## 2026-08-21 — Day 4 packaging decisions
+
+Evaluation is complete and treated as frozen from here on (corpus,
+`data/qa_set.json`, `data/refusal_set.json`, chunking, retrieval config,
+every `runs/` artifact, reported RAGAS scores). Day 4's changes are
+packaging/serving only: `app/`, `src/logging_utils.py`, `Dockerfile`,
+`.dockerignore`, `README.md`, `docs/`. Nothing in `src/retrieval/`,
+`src/generate.py`, or `eval/` was modified — `app/api.py` reuses
+`eval.run_generation._retrieve` and `src.generate.generate` directly rather
+than reimplementing arm dispatch or generation.
+
+**`data/chroma/` un-gitignored and committed.** It was previously excluded
+via `.gitignore`. Baking the pre-built vector store into the Docker image
+(rather than re-running ingestion at container build/start time) requires
+it to actually be present after a fresh `git clone` — otherwise `docker
+build` on a clean checkout would produce an empty, useless collection.
+Tradeoff, documented in README.md ("Deployment notes"): the committed DB
+can silently drift out of sync with the corpus or chunking code if either
+changes later without re-ingesting and re-committing. Acceptable for a
+demo/portfolio deployment; would need a real ingestion step (or a build-
+time re-ingest) for anything longer-lived.
+
+**Split `requirements-api.txt` out of `requirements.txt`.** The Docker
+image installs only `requirements-api.txt` (fastapi, uvicorn, pydantic,
+chromadb, sentence-transformers, rank-bm25, groq, plus CPU-only torch
+installed separately). This deliberately excludes `requirements.txt`'s
+ragas/openai/langchain-*/tiktoken/PyMuPDF — none of which `app/api.py` or
+anything it imports ever touches — so the served container doesn't carry
+Stage 2's evaluation-only dependency weight for no runtime benefit.
+
+**CPU-only torch in the Docker image**, installed from
+`https://download.pytorch.org/whl/cpu` before the rest of
+`requirements-api.txt`, to avoid pip resolving the much larger
+CUDA-enabled build on Linux for a container that only ever serves on CPU.
+Verified inside the built image: `torch.__version__ == "2.13.0+cpu"`,
+`torch.cuda.is_available() == False`.
+
+**Validated locally**: `uvicorn app.api:app` (host venv) and `docker build
++ docker run` (Docker Desktop) both confirmed — `GET /health` returns 200
+with the correct Chroma count and model info; `POST /query` returns 401
+with no/wrong `X-API-Key`, 422 on an invalid `arm` or a too-short question,
+and 200 with correct grounded answers on all three arms
+(`dense`/`hybrid`/`hybrid_rerank`); the Docker `HEALTHCHECK` reports
+`healthy`; `.env` is confirmed absent from the built image;
+`logs/requests.jsonl` is confirmed to carry no API key, auth header, or
+full chunk text.
+
+**Re-validated against an actual clean clone** (2026-08-21, pre-commit
+review): staged the intended commit fileset, committed it temporarily on a
+disposable branch (`day4-validation-temp`), `git clone`d that branch into
+a fresh directory, and ran `docker build` + `docker run` + curl from
+*that* clone -- not the working tree. Confirmed: `data/chroma/` present
+and populated (124 chunks) in the clone; `GET /health` returns 200;
+`POST /query` returns 401 with no key and 200 with correct grounded
+answers on all three arms; `.env`, `data/raw/`, `data/processed/`, and
+`.git/` all absent from the built image; a filesystem-wide grep for the
+three env var names inside the image turned up only two false positives
+(library help-text with placeholder `sk-...` values, not real secrets).
+Cleaned up afterward (container, image, clone directory, disposable
+branch all removed) and confirmed via `git status` that `main`'s working
+tree matches its pre-validation state exactly.
+
+One operational note from this: switching back to `main` after deleting
+the disposable branch initially deleted the new Day 4 files from the
+working tree (git checkout removes files tracked on the branch you're
+leaving but absent from the target branch's tree) -- recovered cleanly via
+`git checkout <dangling-commit-sha> -- .` followed by `git reset`, since
+the commit object survives `git branch -D` until garbage-collected.
+Recorded here as a reminder for next time: prefer a separate worktree
+(`git worktree add`) over branch-switching for this kind of temporary-
+commit validation, since a worktree's files are physically separate from
+the main working tree and can't be clobbered by a `checkout` on either
+side.

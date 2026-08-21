@@ -1,8 +1,18 @@
 .env
 chroma_db/
-data/chroma/
 logs/
 __pycache__/
 venv/
 *.pyc
 .cache/
+.DS_Store
+runs/
+data/raw/
+data/processed/
+
+# data/chroma/ is intentionally NOT ignored: Day 4 ships the pre-built
+# vector store committed to git so `git clone && docker build` produces a
+# working container without re-running ingestion. See README.md
+# ("Deployment notes") and decisions.md for the tradeoff this implies
+# (the DB can drift from the corpus/chunking code that produced it if
+# either changes without re-ingesting and re-committing).

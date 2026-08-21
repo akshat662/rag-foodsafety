@@ -1,0 +1,17 @@
+# Minimal dependency set for the SERVED FastAPI app only (app/api.py,
+# GET /health, POST /query) -- this is what the Docker image installs,
+# deliberately excluding requirements.txt's ragas/openai/langchain-*/
+# tiktoken/PyMuPDF: those are Stage 2 evaluation-only dependencies
+# (eval/run_ragas.py), never imported by anything app/api.py touches, and
+# would only bloat the served container for no runtime benefit.
+#
+# torch is installed separately in the Dockerfile from the PyTorch CPU
+# wheel index before this file, so it is not listed again here.
+
+fastapi==0.141.1              # API layer (app/api.py, app/schemas.py)
+uvicorn==0.52.4               # ASGI server running the FastAPI app
+pydantic==2.13.4              # request/response schemas (app/schemas.py)
+chromadb==1.5.9               # persistent vector store (src/ingest.py, src/retrieval/vector.py)
+sentence-transformers==6.0.0  # local embeddings (BAAI/bge-small-en-v1.5) + CrossEncoder reranker
+rank-bm25==0.2.2               # BM25 lexical retrieval (src/retrieval/bm25.py)
+groq==1.6.0                    # Groq provider SDK, imported only inside src/llm.py
