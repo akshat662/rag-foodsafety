@@ -231,5 +231,4 @@ methodological decision along the way, is in `decisions.md`.
 
 This project is containerized, API-served, logged, and evaluated. It does
 not have monitoring/alerting, CI/CD, autoscaling, load testing, or an SLA —
-the things that would make "production-grade" an accurate claim. See
-`docs/INTERVIEW_NOTES.md` for how this distinction gets explained out loud.
+the things that would make "production-grade" an accurate claim. 
