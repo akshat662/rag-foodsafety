@@ -9,3 +9,12 @@ sentence-transformers==6.0.0 # local embeddings (BAAI/bge-small-en-v1.5) + Cross
 torch==2.13.0                # required by sentence-transformers to run its models
 rank-bm25==0.2.2             # BM25 lexical retrieval (src/retrieval/bm25.py)
 groq==1.6.0                  # Groq provider SDK, imported only inside src/llm.py
+ragas==0.4.3                 # Stage 2 RAGAS judging (eval/run_ragas.py)
+tiktoken==0.14.0             # token counting for eval/run_ragas.py's dry-run cost estimator
+openai==1.109.1              # OpenAI provider SDK, only inside eval/run_ragas.py's real-run path
+langchain-openai==1.1.9      # ragas's LLM wrapper for the OpenAI judge (eval/run_ragas.py real-run path)
+# langchain-community pinned below 0.4 deliberately: ragas 0.4.3's ragas/llms/base.py
+# unconditionally imports langchain_community.chat_models.vertexai.ChatVertexAI, which
+# langchain-community 0.4.x removed outright (see decisions.md, 2026-08-21). 0.3.31 is
+# the last release that still has it; ragas import fails on 0.4.x without this pin.
+langchain-community==0.3.31

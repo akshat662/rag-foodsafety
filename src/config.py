@@ -24,6 +24,10 @@ class ProviderConfig:
     # own default in place (e.g. for a judge where determinism doesn't matter
     # the same way). Set explicitly to 0 for reproducible eval runs.
     temperature: float | None = None
+    # GPT-5-family reasoning effort ("minimal"/"low"/"medium"/"high"/...).
+    # None for non-reasoning models (e.g. GENERATOR's Qwen on Groq), which
+    # don't accept this parameter at all.
+    reasoning_effort: str | None = None
 
 
 # Generation.
@@ -41,12 +45,20 @@ GENERATOR = ProviderConfig(
 )
 
 # RAGAS judging.
-# Exact OpenAI judge model to be selected before Day 3.
+# Selected over gpt-4o-mini on 2026-08-21 — see decisions.md for the full
+# reasoning (cost difference vs. gpt-4o-mini was negligible against the
+# project budget; the deciding factor was model lifecycle/reproducibility,
+# not price). Pending pilot validation before treated as fully frozen.
+# reasoning_effort=minimal: the judge task is structured NLI-style
+# evaluation, not open-ended reasoning, so the lowest non-"none" effort
+# tier is the appropriate choice; actual reasoning-token usage under this
+# setting is unverified until the pilot runs (see eval/run_ragas.py).
 # Rate limits intentionally left unset — OpenAI API account not yet configured.
 JUDGE = ProviderConfig(
     provider="openai",
-    model="TBD",
+    model="gpt-5-mini",
     rate_limits=None,
+    reasoning_effort="minimal",
 )
 
 

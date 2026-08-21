@@ -157,6 +157,81 @@ account for, which may cause more real 429 backoff during the 45-pair run
 than under `gpt-oss-20b` — expected to be absorbed by the existing
 retry/backoff, not a correctness risk.
 
+## 2026-08-21 — Stage 2 (RAGAS) infrastructure: version, packaging fix, judge candidates
+
+`ragas==0.4.3` installed (latest on PyPI at install time), per Day 3 plan
+section 4. Confirmed installed metric class names before writing any
+harness code: `ragas.metrics.Faithfulness`, `AnswerRelevancy`,
+`ContextPrecision`, `ContextRecall` all exist and match the legacy
+class-based API the rest of the RAGAS ecosystem's tutorials assume.
+`ContextPrecision`'s default instance requires `reference` (ground truth)
+in `_required_columns` — confirmed by inspecting the installed class
+directly, not assumed: it is the reference-based variant, consistent with
+scoring against `qa_set.json`'s `ground_truth` field.
+
+**Packaging issue hit and fixed**: `ragas==0.4.3` fails to import at all
+(`ModuleNotFoundError` cascading to `ImportError`) against the
+latest `langchain-community==0.4.2`, because `ragas/llms/base.py`
+unconditionally imports `langchain_community.chat_models.vertexai.ChatVertexAI`
+at module load time regardless of which provider is actually used, and
+`langchain-community` removed that submodule entirely in its 0.4.x
+"sunset" releases. Fixed by pinning `langchain-community==0.3.31` (the
+last release that still ships it) — no code workaround, no ragas patch.
+Logged here per the Day 3 plan's explicit warning that RAGAS's API/dependency
+churn "is a reliable way to lose two hours" — this cost about fifteen
+minutes because it was diagnosed by reading the actual traceback and
+`ragas`'s import line rather than guessing.
+
+**Exact per-metric LLM call counts**, confirmed by reading the installed
+`_ascore`/`_ascore` implementations directly (not assumed from the Day 3
+plan's planning table, though they turned out to match):
+- Faithfulness: 2 calls (statement generation, then NLI verification).
+- Answer Relevancy: **1 call**, not `strictness` calls — `strictness`
+  is passed as `n=strictness` on a single `generate_multiple` request, so
+  it only inflates output tokens (a handful of extra short JSON completions),
+  not input tokens or call count. Set to `strictness=1` anyway, for
+  defensibility/simplicity rather than cost (the dollar delta between
+  strictness=1 and strictness=3 is negligible at these prices — see the
+  dry-run report). This corrects an initial assumption that reducing
+  strictness was primarily a cost lever; it is not, materially.
+- Context Precision: 1 call per retrieved chunk (`k_final=3` → 3 calls).
+- Context Recall: 1 call over the full concatenated context.
+- Total: 7 calls/pair × 45 pairs = 315 calls, matching the Day 3 plan's
+  original estimate exactly once Answer Relevancy's real call count (not
+  its worst-case-per-strictness reading) is used.
+
+**Judge model candidates evaluated** (pricing fetched live via WebFetch
+from developers.openai.com/api/docs/pricing on 2026-08-20 — my training
+data predates today by ~7 months and was not used for pricing numbers;
+re-verify at platform.openai.com/pricing before purchasing credits):
+`gpt-4o-mini`, `gpt-5-nano`, `gpt-5-mini`, `gpt-4.1-nano`, `gpt-4.1-mini`.
+Full-45-pair dry-run cost estimates ranged $0.038 (gpt-5-nano) to $0.285
+(gpt-4.1-mini) — all candidates are comfortably inside the $2–3 budget by
+more than an order of magnitude, so cost was not the deciding factor
+between them.
+
+**Proposed** (not yet confirmed — `src.config.JUDGE.model` is still
+`"TBD"`): `gpt-4o-mini`. Nano-tier models (`gpt-5-nano`, `gpt-4.1-nano`)
+were set aside on capability grounds, not price: faithfulness/context-precision
+judging is a multi-step NLI-style task (decompose into statements, verify
+each against context, produce a reasoned verdict), and nano-tier models are
+the least proven at this specific kind of structured judgment. `gpt-4o-mini`
+is the most widely validated LLM-as-judge choice in the published
+RAG-evaluation/RAGAS literature specifically, which matters for defensibility
+in an interview/academic setting. Between the two viable mini-tier options,
+`gpt-4o-mini`'s input price ($0.15/1M) beats `gpt-5-mini`'s ($0.25/1M) on
+our actual, heavily input-token-dominated workload (long regulation-text
+contexts, short JSON verdicts), so it is also the cheaper of the two
+credible choices, not only the more established one.
+
+**Dry-run cost estimate for the real 45-pair evaluation** (`gpt-4o-mini`,
+against the frozen `stage1_20260820_215228` run): 315 calls, ~672K input /
+~10K output tokens, **$0.107 estimated, $0.214 worst-case (2x margin)** —
+full report in `runs/ragas_20260821_002531/dry_run_estimate.json`. No
+OpenAI API call was made to produce this; input tokens are exact (tiktoken
+over RAGAS's real rendered prompts), output tokens are a documented
+estimate pending pilot-run correction.
+
 ## 2026-08-19 — Evaluation set frozen (15 questions)
 
 15 eval questions written to `data/qa_set.json`: 4 lexical / 3 semantic /
@@ -189,3 +264,47 @@ JSON files parse cleanly, no duplicate IDs.
 `data/qa_set.json` and `data/refusal_set.json` are committed together as a
 single frozen snapshot, before any retrieval, reranking, generation-with-
 context, or RAGAS evaluation runs against them.
+
+## 2026-08-21 — Judge model: gpt-5-mini over gpt-4o-mini
+
+Selected gpt-5-mini over gpt-4o-mini. The cost differential was
+insignificant against the project budget. The deciding factor was model
+lifecycle and reproducibility: using a current-generation mini-tier model
+avoids dependence on a model family potentially entering wind-down.
+reasoning_effort was set to minimal because the judge task is structured
+NLI-style evaluation rather than open-ended reasoning. The pilot will
+validate actual output-token usage including reasoning tokens.
+
+`src.config.JUDGE` updated: `model="gpt-5-mini"`, `reasoning_effort="minimal"`.
+Both `gpt-4o-mini` and `gpt-5-mini` full-45-pair dry-run estimates stay
+under $0.30 (see below) — two orders of magnitude under the $2-3 cap either
+way, which is why cost was not the deciding factor between them.
+
+Two things checked before accepting this change, not assumed:
+
+- **Tokenizer**: `tiktoken==0.14.0`'s `encoding_for_model("gpt-5-mini")`
+  returns `o200k_base` — an explicit registry entry, not a silent
+  fallback — identical to the encoding already used for `gpt-4o-mini`.
+  Input-token counts did not need to be regenerated; they are exact either
+  way (tiktoken over RAGAS's real rendered prompts).
+- **Reasoning tokens**: unlike gpt-4o-mini, gpt-5-mini is a reasoning model.
+  OpenAI's own docs (developers.openai.com/api/docs/guides/reasoning,
+  fetched 2026-08-21) confirm reasoning tokens are billed as output tokens
+  even though invisible in the response, and that `reasoning_effort=minimal`
+  still reasons "adaptively" rather than skipping reasoning entirely — but
+  give no concrete per-call token count. `eval/run_ragas.py` therefore
+  carries an explicit, separately-reported
+  `REASONING_TOKENS_PER_CALL_ASSUMPTION = 100` tokens/call, flagged in the
+  dry-run report's `caveats` as unverified and loosely anchored against
+  Stage 1's own live observation of a different reasoning model (Qwen3.6 on
+  Groq generating ~200 reasoning tokens for a trivial, undialed request),
+  scaled down for `minimal` effort and our short, templated per-call tasks.
+  This is exactly the number the pilot is expected to correct.
+
+**Updated dry-run cost estimate** (gpt-5-mini, reasoning_effort=minimal,
+against the frozen `stage1_20260820_215228` run, including the assumed
+reasoning-token overhead): 315 calls, ~672K input / ~10K visible-output /
+~32K assumed-reasoning tokens, **$0.251 estimated, $0.502 worst-case** —
+full report in `runs/ragas_20260821_094707/dry_run_estimate.json`. No
+OpenAI API call was made to produce this; `OPENAI_API_KEY` was confirmed
+absent from the shell environment before running the estimator.
