@@ -44,7 +44,7 @@ def _get_cached_collection() -> Collection:
     return _collection
 
 
-def retrieve(query: str, k: int = RETRIEVAL.k_final) -> list[Chunk]:
+def retrieve(query: str, k: int = RETRIEVAL.k_final, collection: Collection | None = None) -> list[Chunk]:
     """Return the top-k chunks from `fssai_regulations` most similar to `query`.
 
     `query` is embedded locally by the collection's configured embedding
@@ -53,9 +53,15 @@ def retrieve(query: str, k: int = RETRIEVAL.k_final) -> list[Chunk]:
     src.config.RETRIEVAL.k_final, the same final context size every
     ablation arm uses; callers pass a larger `k` explicitly when using this
     as a first-stage candidate pool (e.g. inside hybrid.retrieve).
+
+    `collection` optionally overrides the default cached `fssai_regulations`
+    collection with a different, already-constructed Collection — used only
+    by the secondary corpus-scale experiment (scripts/recall_at_k_large.py)
+    to query a separate collection. Every other caller leaves this unset
+    and gets the original default-collection behavior unchanged.
     """
-    collection = _get_cached_collection()
-    results = collection.query(
+    target_collection = collection if collection is not None else _get_cached_collection()
+    results = target_collection.query(
         query_texts=[query],
         n_results=k,
         include=["documents", "metadatas", "distances"],

@@ -9,6 +9,8 @@ are implemented separately.
 
 from dataclasses import dataclass
 
+from chromadb import Collection
+
 from src.config import RETRIEVAL
 from src.retrieval import bm25, vector
 from src.retrieval.vector import Chunk
@@ -40,6 +42,7 @@ def retrieve(
     k: int = RETRIEVAL.k_final,
     candidate_k: int = RETRIEVAL.candidate_k,
     rrf_k: int = RETRIEVAL.rrf_k,
+    collection: Collection | None = None,
 ) -> list[Chunk]:
     """Return the top-k chunks by Reciprocal Rank Fusion of dense + BM25 results.
 
@@ -50,10 +53,16 @@ def retrieve(
     distances and BM25 scores are never compared or combined. Defaults come
     from src.config.RETRIEVAL, the single source of truth shared by every
     ablation arm.
+
+    `collection` optionally overrides the default `fssai_regulations`
+    collection for both the dense and BM25 first-stage retrievals — used
+    only by the secondary corpus-scale experiment
+    (scripts/recall_at_k_large.py). Every other caller leaves this unset
+    and gets the original default-collection behavior unchanged.
     """
     ranked_lists = (
-        vector.retrieve(query, candidate_k),
-        bm25.retrieve(query, candidate_k),
+        vector.retrieve(query, candidate_k, collection=collection),
+        bm25.retrieve(query, candidate_k, collection=collection),
     )
 
     fused: dict[str, _Fused] = {}

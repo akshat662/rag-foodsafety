@@ -464,3 +464,60 @@ Recorded here as a reminder for next time: prefer a separate worktree
 commit validation, since a worktree's files are physically separate from
 the main working tree and can't be clobbered by a `checkout` on either
 side.
+
+## 2026-09-01 — Optional `collection` parameter added for the secondary (corpus-scale) experiment
+
+**Context.** A secondary experiment (see reports/secondary_corpus_scale.md)
+re-runs the same 15-question benchmark against a new, separate Chroma
+collection (`fssai_large`, 263 chunks, `data/chroma_large/`) to test
+whether the primary experiment's recall@3 = 1.00 saturation for dense-only
+retrieval was a property of dense retrieval or an artifact of the primary
+corpus's small size (124 chunks). The primary collection
+(`fssai_regulations`, `data/chroma/`) and its 124-chunk result are frozen
+and must not be touched.
+
+**Change.** Added an optional `collection: Collection | None = None`
+parameter to:
+- `src/retrieval/vector.py` (`retrieve`)
+- `src/retrieval/bm25.py` (`retrieve`, `_load_corpus`, `_get_cached_corpus`
+  — the last of these now keys an additional cache dict by collection
+  object identity, so querying an alternate collection never evicts or is
+  evicted by the default cached corpus)
+- `src/retrieval/hybrid.py` (`retrieve`, threads `collection` through to
+  both the dense and BM25 first-stage calls)
+- `eval/run_generation.py` (`_retrieve`, `_run_one`, `run`, plus new
+  `--collection-name`/`--chroma-dir` CLI args and an additive
+  `"collection": {"name", "chunk_count"}` block in the written
+  `config.json`)
+
+In every case the parameter defaults to `None`, which preserves the
+original code path exactly (the module's own cached default collection —
+`fssai_regulations` via `src.ingest.get_collection()`). No default-path
+behavior, retrieval logic, ranking logic, or generation logic changed.
+This is the same shape of change the corpus-scale experiment's own
+constraints pre-approved: "If they need a collection name parameter, add
+it as an optional argument that defaults to the existing behaviour."
+
+**Observed side effect while testing this (not a code bug, recorded for
+awareness).** Running a read-only diagnostic (`scripts/recall_at_k_large.py`)
+against the primary `fssai_regulations` collection caused
+`data/chroma/chroma.sqlite3` and its HNSW `data_level0.bin` to be rewritten
+on disk (`git status` showed them modified) even though no `.upsert()` or
+`.add()` call was made anywhere in that path — evidently a SQLite
+WAL/journal or Chroma-internal read-time bookkeeping side effect, not a
+content change. Verified byte-for-byte: file sizes identical
+(5,529,600 / 167,600 bytes, unchanged), `collection.count()` still 124,
+distinct clause-label count still 90. Reverted with `git checkout --
+data/chroma/` to keep the tree clean.
+
+Given that even a read against the primary collection can touch its files
+on disk, and the primary result has no undo, a SHA256 checksum of every
+file under `data/chroma/` was taken and written to
+`reports/primary_chroma_checksums.txt`, and a full byte-verified copy of
+`data/chroma/` was made outside the repo, at
+`~/rag_backup_chroma/chroma_20260901_122543/`, before Step 3 (generation +
+RAGAS against `fssai_large`) proceeded. Step 3's own code path never
+constructs the primary collection at all (an explicit `fssai_large`
+`Collection` object is passed through every call in `_retrieve`), so no
+further reads of `data/chroma/` are expected during Step 3 — the backup is
+a safety margin, not an expectation that it will be needed.

@@ -29,8 +29,13 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+import chromadb
+from chromadb import Collection
+from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+
 from src.config import GENERATOR, RETRIEVAL
 from src.generate import generate
+from src.ingest import COLLECTION_NAME as PRIMARY_COLLECTION_NAME
 from src.ingest import EMBEDDING_MODEL_NAME
 from src.rate_limiter import estimate_tokens
 from src.retrieval import hybrid, rerank, vector
@@ -42,19 +47,25 @@ QA_SET_PATH = Path("data/qa_set.json")
 RUNS_DIR = Path("runs")
 
 
-def _retrieve(arm: str, question: str) -> list[Chunk]:
+def _retrieve(arm: str, question: str, collection: Collection | None = None) -> list[Chunk]:
     """Retrieve context chunks for `question` under `arm`, per the Day 3 plan's
     fixed arm definitions. Every arm shares src.config.RETRIEVAL's k_final, so
     only the retrieval/ranking method differs between arms, never context size.
+
+    `collection` optionally overrides the default `fssai_regulations`
+    collection — used only by the secondary corpus-scale experiment to
+    generate against `fssai_large` instead. Every other caller leaves this
+    unset and gets the original default-collection behavior unchanged.
     """
     if arm == "A":
-        return vector.retrieve(question, k=RETRIEVAL.k_final)
+        return vector.retrieve(question, k=RETRIEVAL.k_final, collection=collection)
     if arm == "B":
         return hybrid.retrieve(
             question,
             k=RETRIEVAL.k_final,
             candidate_k=RETRIEVAL.candidate_k,
             rrf_k=RETRIEVAL.rrf_k,
+            collection=collection,
         )
     if arm == "C":
         candidate_pool = hybrid.retrieve(
@@ -62,6 +73,7 @@ def _retrieve(arm: str, question: str) -> list[Chunk]:
             k=RETRIEVAL.candidate_k,
             candidate_k=RETRIEVAL.candidate_k,
             rrf_k=RETRIEVAL.rrf_k,
+            collection=collection,
         )
         return rerank.rerank(question, candidate_pool, k=RETRIEVAL.k_final)
     raise ValueError(f"unknown arm {arm!r}; expected one of {ARMS}")
@@ -127,7 +139,7 @@ def _load_completed(output_path: Path) -> set[tuple[str, str]]:
     return completed
 
 
-def _write_run_metadata(run_dir: Path) -> None:
+def _write_run_metadata(run_dir: Path, collection: Collection | None = None) -> None:
     config = {
         "generator": {
             "provider": GENERATOR.provider,
@@ -136,6 +148,10 @@ def _write_run_metadata(run_dir: Path) -> None:
         },
         "retrieval": asdict(RETRIEVAL),
         "embedding_model": EMBEDDING_MODEL_NAME,
+        "collection": {
+            "name": collection.name if collection is not None else PRIMARY_COLLECTION_NAME,
+            "chunk_count": collection.count() if collection is not None else None,
+        },
         "arms": {
             "A": "dense only, top k_final",
             "B": "dense + BM25 -> RRF, top k_final",
@@ -146,13 +162,13 @@ def _write_run_metadata(run_dir: Path) -> None:
     (run_dir / "git_commit.txt").write_text(_git_commit() + "\n")
 
 
-def _run_one(question: dict, arm: str) -> dict:
+def _run_one(question: dict, arm: str, collection: Collection | None = None) -> dict:
     question_id = question["id"]
     question_text = question["question"]
 
     t0 = time.monotonic()
     try:
-        chunks = _retrieve(arm, question_text)
+        chunks = _retrieve(arm, question_text, collection=collection)
     except Exception as exc:  # noqa: BLE001 - one bad pair must not kill the run
         return {
             "question_id": question_id,
@@ -207,12 +223,12 @@ def _run_one(question: dict, arm: str) -> dict:
     }
 
 
-def run(run_id: str, questions_path: Path) -> None:
+def run(run_id: str, questions_path: Path, collection: Collection | None = None) -> None:
     run_dir = RUNS_DIR / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     output_path = run_dir / "generations.jsonl"
 
-    _write_run_metadata(run_dir)
+    _write_run_metadata(run_dir, collection=collection)
 
     questions = _load_questions(questions_path)
     completed = _load_completed(output_path)
@@ -228,7 +244,7 @@ def run(run_id: str, questions_path: Path) -> None:
                     skipped += 1
                     continue
 
-                row = _run_one(question, arm)
+                row = _run_one(question, arm, collection=collection)
                 out.write(json.dumps(row) + "\n")
                 out.flush()
                 done += 1
@@ -252,10 +268,29 @@ def main() -> None:
         default=str(QA_SET_PATH),
         help="Path to the frozen QA set (default: data/qa_set.json).",
     )
+    parser.add_argument(
+        "--collection-name",
+        default=None,
+        help="Override the Chroma collection name (default: fssai_regulations, primary).",
+    )
+    parser.add_argument(
+        "--chroma-dir",
+        default=None,
+        help="Override the Chroma persist directory (default: data/chroma, primary).",
+    )
     args = parser.parse_args()
 
+    collection: Collection | None = None
+    if args.collection_name or args.chroma_dir:
+        client = chromadb.PersistentClient(path=args.chroma_dir or "data/chroma")
+        embedding_function = SentenceTransformerEmbeddingFunction(model_name=EMBEDDING_MODEL_NAME)
+        collection = client.get_collection(
+            name=args.collection_name or PRIMARY_COLLECTION_NAME,
+            embedding_function=embedding_function,
+        )
+
     run_id = args.run_id or time.strftime("%Y%m%d_%H%M%S")
-    run(run_id, Path(args.questions))
+    run(run_id, Path(args.questions), collection=collection)
 
 
 if __name__ == "__main__":
