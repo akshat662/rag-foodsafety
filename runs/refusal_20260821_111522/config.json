@@ -1,0 +1,8 @@
+{
+  "arms": [
+    "A",
+    "B",
+    "C"
+  ],
+  "source": "data/refusal_set.json"
+}

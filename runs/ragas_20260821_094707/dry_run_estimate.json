@@ -1,0 +1,74 @@
+{
+  "ragas_version": "0.4.3",
+  "judge_model": "gpt-5-mini",
+  "judge_reasoning_effort": "minimal",
+  "is_reasoning_model": true,
+  "pricing_per_1m_tokens_usd": {
+    "input": 0.25,
+    "output": 2.0
+  },
+  "pricing_source": "developers.openai.com/api/docs/pricing, fetched 2026-08-20 -- RE-VERIFY before purchasing credits",
+  "token_encoding_assumption": "o200k_base",
+  "token_encoding_verified_via": "tiktoken.encoding_for_model() explicit registry entry, not a fallback",
+  "reasoning_tokens_per_call_assumption": 100,
+  "stage1_run_id": "stage1_20260820_215228",
+  "n_pairs_total": 45,
+  "n_pairs_pilot": 6,
+  "pilot_question_ids": [
+    "q01",
+    "q02"
+  ],
+  "answer_relevancy_strictness": 1,
+  "context_precision_k": 3,
+  "per_metric": {
+    "faithfulness": {
+      "calls": 90,
+      "input_tokens": 200225,
+      "output_tokens_visible": 2700,
+      "output_tokens_reasoning_assumed": 9000,
+      "total_tokens": 211925,
+      "estimated_cost_usd": 0.0735
+    },
+    "answer_relevancy": {
+      "calls": 45,
+      "input_tokens": 16457,
+      "output_tokens_visible": 1125,
+      "output_tokens_reasoning_assumed": 4500,
+      "total_tokens": 22082,
+      "estimated_cost_usd": 0.0154
+    },
+    "context_precision": {
+      "calls": 135,
+      "input_tokens": 269612,
+      "output_tokens_visible": 4725,
+      "output_tokens_reasoning_assumed": 13500,
+      "total_tokens": 287837,
+      "estimated_cost_usd": 0.1039
+    },
+    "context_recall": {
+      "calls": 45,
+      "input_tokens": 185473,
+      "output_tokens_visible": 1575,
+      "output_tokens_reasoning_assumed": 4500,
+      "total_tokens": 191548,
+      "estimated_cost_usd": 0.0585
+    }
+  },
+  "total_expected_llm_calls": 315,
+  "total_estimated_input_tokens": 671767,
+  "total_estimated_output_tokens_visible": 10125,
+  "total_estimated_output_tokens_reasoning_assumed": 31500,
+  "total_estimated_cost_usd_full_45": 0.2512,
+  "estimated_cost_usd_pilot_6": 0.037,
+  "worst_case_cost_usd_full_45": 0.5024,
+  "budget_cap_usd": 3.0,
+  "within_budget_full_run": true,
+  "within_budget_worst_case": true,
+  "caveats": [
+    "Input tokens are exact (tiktoken over RAGAS's real rendered prompts using actual Stage 1 data).",
+    "Visible-output tokens are ESTIMATED from few-shot example shapes, not measured -- true values will differ; the pilot run's actual usage should replace these numbers before trusting the full-45 projection.",
+    "Reasoning tokens (gpt-5-mini only) are an UNVERIFIED planning assumption (100 tokens/call at reasoning_effort=minimal), not measured or documented by OpenAI as a specific number -- OpenAI confirms reasoning tokens are billed as output tokens and that minimal effort still reasons adaptively, but gives no concrete token count. The pilot's real usage.completion_tokens_details.reasoning_tokens must replace this before the full-45 projection is trusted.",
+    "generate_multiple's retry behavior (retries_left, default 3 inside RAGAS itself, separate from this harness's own MAX_RETRIES) is not reflected per-call above; worst_case applies a flat 2x multiplier as a coarse upper bound, not a simulation of RAGAS's internal retry logic.",
+    "Token encoding verified via tiktoken.encoding_for_model(judge_model) rather than assumed; still, exact tokenizer behavior for very new models can occasionally lag tiktoken releases."
+  ]
+}

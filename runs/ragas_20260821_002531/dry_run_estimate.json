@@ -1,0 +1,64 @@
+{
+  "ragas_version": "0.4.3",
+  "judge_model": "gpt-4o-mini",
+  "pricing_per_1m_tokens_usd": {
+    "input": 0.15,
+    "output": 0.6
+  },
+  "pricing_source": "developers.openai.com/api/docs/pricing, fetched 2026-08-20 -- RE-VERIFY before purchasing credits",
+  "token_encoding_assumption": "o200k_base",
+  "stage1_run_id": "stage1_20260820_215228",
+  "n_pairs_total": 45,
+  "n_pairs_pilot": 6,
+  "pilot_question_ids": [
+    "q01",
+    "q02"
+  ],
+  "answer_relevancy_strictness": 1,
+  "context_precision_k": 3,
+  "per_metric": {
+    "faithfulness": {
+      "calls": 90,
+      "input_tokens": 200225,
+      "output_tokens": 2700,
+      "total_tokens": 202925,
+      "estimated_cost_usd": 0.0317
+    },
+    "answer_relevancy": {
+      "calls": 45,
+      "input_tokens": 16457,
+      "output_tokens": 1125,
+      "total_tokens": 17582,
+      "estimated_cost_usd": 0.0031
+    },
+    "context_precision": {
+      "calls": 135,
+      "input_tokens": 269612,
+      "output_tokens": 4725,
+      "total_tokens": 274337,
+      "estimated_cost_usd": 0.0433
+    },
+    "context_recall": {
+      "calls": 45,
+      "input_tokens": 185473,
+      "output_tokens": 1575,
+      "total_tokens": 187048,
+      "estimated_cost_usd": 0.0288
+    }
+  },
+  "total_expected_llm_calls": 315,
+  "total_estimated_input_tokens": 671767,
+  "total_estimated_output_tokens": 10125,
+  "total_estimated_cost_usd_full_45": 0.1068,
+  "estimated_cost_usd_pilot_6": 0.0163,
+  "worst_case_cost_usd_full_45": 0.2137,
+  "budget_cap_usd": 3.0,
+  "within_budget_full_run": true,
+  "within_budget_worst_case": true,
+  "caveats": [
+    "Input tokens are exact (tiktoken over RAGAS's real rendered prompts using actual Stage 1 data).",
+    "Output tokens are ESTIMATED from few-shot example shapes, not measured -- true values will differ; the pilot run's actual usage should replace these numbers before trusting the full-45 projection.",
+    "generate_multiple's retry behavior (retries_left, default 3 inside RAGAS itself, separate from this harness's own MAX_RETRIES) is not reflected per-call above; worst_case applies a flat 2x multiplier as a coarse upper bound, not a simulation of RAGAS's internal retry logic.",
+    "Token encoding assumed as o200k_base for all candidate judge models; actual tokenizer may differ slightly by model."
+  ]
+}

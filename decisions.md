@@ -521,3 +521,51 @@ constructs the primary collection at all (an explicit `fssai_large`
 `Collection` object is passed through every call in `_retrieve`), so no
 further reads of `data/chroma/` are expected during Step 3 — the backup is
 a safety margin, not an expectation that it will be needed.
+
+## 2026-09-01 — Secondary experiment: corpus-scale ablation (124 → 263 chunks)
+
+**Why this was run.** The primary 3-arm ablation (dense / hybrid-RRF /
+hybrid+rerank, 124 chunks, 3 chapters) found recall@3 = 1.00 for all three
+arms — dense retrieval alone already saturated the benchmark, leaving
+hybrid retrieval and reranking no measurable headroom to improve on. That
+result is consistent with two different explanations: either dense
+retrieval genuinely has no weakness this benchmark can expose, or the
+corpus was simply too small for any weakness to surface. This secondary
+experiment re-runs the identical benchmark against a larger, more
+topically diverse corpus to distinguish between those two explanations.
+
+**What changed.** Corpus only: 124 → 263 chunks, 3 chapters (2.1, 2.4, 2.9)
+→ 9 chapters (adds 2.2, 2.3, 2.5, 2.6, 2.7, 2.10), ingested into a new,
+separate Chroma collection (`fssai_large`, `data/chroma_large/`). The
+primary `fssai_regulations` collection was never modified.
+
+**What stayed constant.** The same 15 frozen questions and clause-level
+ground truth (`data/qa_set.json`, read-only throughout); the same
+chunking logic (`src/chunking.py`, unchanged — the original 3 chapters
+re-chunked to the exact same 124 chunks as a determinism check); the same
+embedding model (`BAAI/bge-small-en-v1.5`); the same retrieval knobs
+(`k_first_stage`/`candidate_k` = 20, `k_final` = 3, RRF `k` = 60); the
+same generator (`qwen/qwen3.6-27b` via Groq, `temperature` = 0.0); the
+same generation prompt; the same judge (`gpt-5-mini`,
+`reasoning_effort=minimal`) and the same 4 RAGAS metrics.
+
+**Headline outcome.** Dense-only (arm A) is not scale-invariant: recall@3
+drops 1.00 → 0.867 and RAGAS context_recall drops 1.00 → 0.80 at 263
+chunks. Hybrid RRF (arm B) holds recall@3 at 1.00 but its RAGAS
+context_recall still drops 1.00 → 0.867 — it retrieves the primary clause
+but, on the two multi-hop questions (q13, q14), never the cross-referenced
+supporting clause (2.1.8), so it answers fluently without ever stating a
+number; faithfulness reads 1.00 anyway because nothing in that vague
+answer contradicts what little it retrieved. Hybrid+rerank (arm C) is the
+only arm unaffected at either recall@3 or context_recall (0.933 on both
+corpora) and the only arm that retrieves the full supporting-clause set
+for q13/q14. Full detail: `reports/secondary_corpus_scale.md`,
+`runs/secondary_large_20260901_122742/`.
+
+**This does not supersede the primary result.** The primary 124-chunk
+ablation remains the frozen, pre-registered, headline result — its 15
+questions and ground truth were committed to git (`6fd13ef`) before any
+tuning, retrieval, or generation ran against them. This secondary
+experiment, by contrast, was designed and run *after* seeing the primary
+result, specifically to probe it — it is confirmatory/exploratory
+follow-up, not a second independent trial, and should be read as such.

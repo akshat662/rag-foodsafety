@@ -1,0 +1,41 @@
+{
+  "generator": {
+    "provider": "groq",
+    "model": "qwen/qwen3.6-27b",
+    "temperature": 0.0
+  },
+  "retrieval": {
+    "k_final": 3,
+    "candidate_k": 20,
+    "rrf_k": 60
+  },
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "collection": {
+    "name": "fssai_large",
+    "chunk_count": 263
+  },
+  "arms": {
+    "A": "dense only, top k_final",
+    "B": "dense + BM25 -> RRF, top k_final",
+    "C": "dense + BM25 -> RRF candidate pool (candidate_k) -> cross-encoder rerank -> top k_final"
+  },
+  "ragas": {
+    "run_id": "secondary_large_20260901_122742",
+    "timestamp": "2026-09-01T14:02:24+0530",
+    "git_commit": "6eef7f8a461f7270150ee21d799b2f91ee670abf",
+    "ragas_version": "0.4.3",
+    "judge_model": "gpt-5-mini",
+    "judge_reasoning_effort": "minimal",
+    "metrics": {
+      "faithfulness": "ragas.metrics.Faithfulness(), defaults",
+      "answer_relevancy": "ragas.metrics.AnswerRelevancy(strictness=1)",
+      "context_precision": "ragas.metrics.ContextPrecision() -- reference-based",
+      "context_recall": "ragas.metrics.ContextRecall() -- reference-based"
+    },
+    "embedding_model_for_answer_relevancy": "BAAI/bge-small-en-v1.5",
+    "source_stage1_run_id": "secondary_large_20260901_122742",
+    "source_stage1_git_commit": "6eef7f8a461f7270150ee21d799b2f91ee670abf",
+    "pilot_question_ids": null,
+    "budget_cap_usd": 3.0
+  }
+}

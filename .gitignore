@@ -6,7 +6,6 @@ venv/
 *.pyc
 .cache/
 .DS_Store
-runs/
 data/raw/
 data/processed/
 

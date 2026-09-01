@@ -1,0 +1,18 @@
+Primary Chroma collection integrity snapshot
+Taken before Step 3 (secondary corpus-scale experiment) of the fssai_large ablation.
+
+Collection: fssai_regulations
+Persist directory: data/chroma
+Chunk count: 124
+Timestamp: 2026-09-01 (pre-Step-3 snapshot)
+
+SHA256 of every file under data/chroma/:
+
+8f68536da8856a30e7411f249400ec9ebf3c2ccb2b5fc62358bd049aa7b488ae  data/chroma/chroma.sqlite3
+3602320c93da796a5d529a77c1c563062828f1fdb5607b47a634e835aa60faee  data/chroma/f3e389aa-d7df-48e0-8547-3730d0346ba4/data_level0.bin
+a0e81c3b22454233bc12d0762f06dcca48261a75231cf87c79b75e69a6c00150  data/chroma/f3e389aa-d7df-48e0-8547-3730d0346ba4/header.bin
+7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5  data/chroma/f3e389aa-d7df-48e0-8547-3730d0346ba4/length.bin
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  data/chroma/f3e389aa-d7df-48e0-8547-3730d0346ba4/link_lists.bin
+
+Verify later with:
+  find data/chroma -type f | sort | xargs shasum -a 256
