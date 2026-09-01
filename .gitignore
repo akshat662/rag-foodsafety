@@ -16,3 +16,4 @@ data/processed/
 # (the DB can drift from the corpus/chunking code that produced it if
 # either changes without re-ingesting and re-committing).
 CLAUDE.md
+CLAUDE.md
