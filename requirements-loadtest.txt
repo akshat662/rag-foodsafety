@@ -1,0 +1,6 @@
+# Load-testing tooling only (loadtest/locustfile.py). Never installed into
+# the served Docker image -- see requirements-api.txt for what that
+# actually needs, and .dockerignore for loadtest/ being excluded from the
+# build context entirely.
+
+locust==2.46.4

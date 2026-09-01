@@ -25,4 +25,5 @@ data/.DS_Store
 tests/
 scripts/
 docs/
+loadtest/
 data/chroma_large/

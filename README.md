@@ -108,6 +108,44 @@ the primary experiment's null result was, at least in part, scale-dependent.
 See [When a faithful answer is still wrong](#when-a-faithful-answer-is-still-wrong)
 for what's actually behind that separation.
 
+## Performance
+
+Load-tested locally: single Docker container, Apple M3, 8 cores / 16 GB
+host, CPU-only, 10 concurrent users, 60 seconds per arm
+(`loadtest/locustfile.py`'s `RetrievalOnlyUser`, no Groq call in this
+scenario — see below).
+
+| Arm | p50 | p95 | RPS |
+|---|---|---|---|
+| Dense | 120 ms | 140 ms | 81.22 |
+| Hybrid (Dense + BM25 + RRF) | 140 ms | 170 ms | 69.92 |
+| Hybrid + reranker | 9,800 ms | 10,000 ms | 0.93 |
+
+Reranking degraded p50 latency from 140 ms to 9.8 s and throughput from
+81.22 to 0.93 RPS at 10 concurrent users — an 87x throughput drop — while
+adding no measurable quality gain at this corpus size: recall@3 is 1.000
+for all three arms on the 124-chunk primary corpus (see Results above).
+Root cause is thread oversubscription on CPU (the cross-encoder runs 20
+forward passes per request, each spinning up its own PyTorch threads,
+which then contend with 10 concurrent requests' worth of the same across
+8 cores), not a model-quality problem — full analysis in
+`loadtest/results.md`. Note that this trade-off flips with corpus size: at
+263 chunks, the reranker was the only arm that retrieved both clauses
+required to answer q13 (see
+[When a faithful answer is still wrong](#when-a-faithful-answer-is-still-wrong)) —
+so the latency cost bought a real retrieval difference there, just not at
+124 chunks.
+
+Scenario B (full pipeline, sequential) could not be completed — 12 of 13
+attempts failed with upstream Groq 429s while our client-side rate limiter
+believed it had budget remaining; retrieval latency stayed at 27 ms – 1.1 s
+throughout, confirming the failure was entirely external to this service.
+Client-side rate limiting is an estimate, not a guarantee, since the
+server holds state the client cannot see.
+
+Full data, every failure mode, and the stage-level breakdown:
+`loadtest/results.md`.
+
 ## Architecture
 
 ```mermaid
@@ -336,10 +374,12 @@ favor of a more superficially relevant fragment. Full detail:
   chunked table content in the corpus has columns that no longer line up
   cleanly after PDF text extraction, which can make a chunk harder to read
   even when its content is otherwise intact.
-- **Not load-tested; no CI or monitoring.** Latency numbers reflect
-  single-request, local/demo conditions, not concurrent traffic, and
-  nothing in this repository runs validation automatically on every
-  commit.
+- **Load testing was single-container, local, CPU-only, against 10
+  concurrent users — not a production capacity assessment.** The
+  full-pipeline scenario could not be completed due to upstream rate
+  limits (see [Performance](#performance),
+  `loadtest/results.md`). No CI, no monitoring or alerting, no
+  autoscaling, no SLA.
 
 ## Setup
 

@@ -15,6 +15,12 @@ Arm = Literal["dense", "hybrid", "hybrid_rerank"]
 class QueryRequest(BaseModel):
     question: str = Field(min_length=3, max_length=500)
     arm: Arm
+    # When true, skip generation entirely and return retrieved chunks only.
+    # Load-testing hook: with generation calling Groq at 30 RPM, concurrent
+    # load against the full pipeline would 429 immediately and measure
+    # Groq's rate limiter, not this service. Default False -- strictly
+    # additive, existing callers are unaffected.
+    retrieval_only: bool = False
 
 
 class LatencyBreakdown(BaseModel):
@@ -25,9 +31,9 @@ class LatencyBreakdown(BaseModel):
 
 class QueryResponse(BaseModel):
     request_id: str
-    answer: str
-    citations: list[str]
-    abstained: bool
+    answer: str | None
+    citations: list[str] | None
+    abstained: bool | None
     retrieved_clauses: list[str]
     latency: LatencyBreakdown
 

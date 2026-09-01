@@ -86,6 +86,31 @@ def query(request: QueryRequest) -> QueryResponse:
         raise HTTPException(status_code=500, detail="retrieval failed") from exc
     t1 = time.monotonic()
 
+    if request.retrieval_only:
+        latency = LatencyBreakdown(
+            retrieval_ms=round((t1 - t0) * 1000, 1),
+            generation_ms=0.0,
+            total_ms=round((t1 - t0) * 1000, 1),
+        )
+        log_request(
+            request_id=request_id,
+            arm=request.arm,
+            question=request.question,
+            retrieved_clauses=[c.clause for c in chunks],
+            abstained=None,
+            latency_ms=latency.model_dump(),
+            tokens=None,
+            status="retrieval_only",
+        )
+        return QueryResponse(
+            request_id=request_id,
+            answer=None,
+            citations=None,
+            abstained=None,
+            retrieved_clauses=[c.clause for c in chunks],
+            latency=latency,
+        )
+
     try:
         result = generate(request.question, chunks)
     except Exception as exc:  # noqa: BLE001

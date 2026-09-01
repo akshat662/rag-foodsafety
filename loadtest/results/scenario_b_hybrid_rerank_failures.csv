@@ -1,0 +1,2 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,"/query [full, arm=hybrid_rerank]","HTTPError('500 Server Error: Internal Server Error for url: /query [full, arm=hybrid_rerank]')",5,2026-09-01T09:54:29Z,2026-09-01T10:00:10Z
