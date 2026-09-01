@@ -1,8 +1,8 @@
 # RAGAS Evaluation — Arm Comparison and Failure Analysis
 
 Source data (read-only, unmodified by this analysis):
-- `runs/ragas_full_20260821_103101/scores.jsonl` — 180 metric evaluations (15 questions × 3 arms × 4 metrics), judge `gpt-5-mini` / `reasoning_effort=minimal`, evaluator commit `22b1d27812d43b21d3d2760d905219be4a7f3ac8`
-- `runs/stage1_20260820_215228/generations.jsonl` — the frozen generation artifacts being judged, generator commit `a3cd8c0e3ffc02badd3925a9723c9d2b2ac0cdc8`
+- `runs/ragas_full_20260821_103101/scores.jsonl` — 180 metric evaluations (15 questions × 3 arms × 4 metrics), judge `gpt-5-mini` / `reasoning_effort=minimal`, evaluator commit `64e26d8c7cce0857b1027f8594da0509050017f3`
+- `runs/stage1_20260820_215228/generations.jsonl` — the frozen generation artifacts being judged, generator commit `18e5a46854b8eaeef51a2df68b7efed03122aef6`
 
 All 180 metric evaluations succeeded (0 errors, 0 retries needed). No code, retrieval, generation, or dataset changes were made to produce this analysis.
 

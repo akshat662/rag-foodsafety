@@ -1,7 +1,7 @@
 {
   "run_id": "ragas_pilot_20260821_101134",
   "timestamp": "2026-08-21T10:21:31+0530",
-  "git_commit": "cdc26ce25ae89b62bf17c65201a93caa32078932",
+  "git_commit": "c9a8b644a05fbc0499b838ddea41e1a9899a9b9e",
   "ragas_version": "0.4.3",
   "judge_model": "gpt-5-mini",
   "judge_reasoning_effort": "minimal",
@@ -13,7 +13,7 @@
   },
   "embedding_model_for_answer_relevancy": "BAAI/bge-small-en-v1.5",
   "source_stage1_run_id": "stage1_20260820_215228",
-  "source_stage1_git_commit": "a3cd8c0e3ffc02badd3925a9723c9d2b2ac0cdc8",
+  "source_stage1_git_commit": "18e5a46854b8eaeef51a2df68b7efed03122aef6",
   "pilot_question_ids": [
     "q01",
     "q02"

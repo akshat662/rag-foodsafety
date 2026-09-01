@@ -13,7 +13,7 @@
   "pricing_source": "developers.openai.com/api/docs/pricing, fetched 2026-08-20 -- RE-VERIFY before purchasing credits",
   "budget_cap_usd": 3.0,
   "source_stage1_run_id": "stage1_20260820_215228",
-  "source_stage1_git_commit": "a3cd8c0e3ffc02badd3925a9723c9d2b2ac0cdc8",
-  "git_commit": "cdc26ce25ae89b62bf17c65201a93caa32078932",
+  "source_stage1_git_commit": "18e5a46854b8eaeef51a2df68b7efed03122aef6",
+  "git_commit": "c9a8b644a05fbc0499b838ddea41e1a9899a9b9e",
   "timestamp": "2026-08-21T10:22:50+0530"
 }
