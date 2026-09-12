@@ -15,6 +15,15 @@ flowchart TB
     Embed --> Chroma[("ChromaDB\n(data/chroma/, 124 chunks)")]
 ```
 
+This diagram shows the **primary/deployed** corpus and collection
+(`data/chroma/`, 3 chapters, 124 chunks — the one `app/api.py` actually
+serves). A second, larger corpus exists for evaluation only:
+`data/chroma_large/` (`fssai_large`, 9 chapters, 263 chunks), built by
+`scripts/ingest_large.py` through the identical chunking/embedding code
+shown above — corpus size is the only difference. It is not exposed
+through the API. See README.md's "Secondary experiment" and "v2
+evaluation" sections for what changes once the corpus grows to that size.
+
 Chunking follows clause boundaries in the source regulation text rather
 than a fixed token window, so each stored chunk corresponds to one
 coherent regulatory unit (a clause's description, composition table, or
@@ -92,3 +101,18 @@ and not "reranking failed" in general.
 
 See `reports/failure_analysis.md` for the full per-question breakdown and
 `README.md` ("Results") for the headline numbers this is based on.
+
+**This conclusion is scale- and benchmark-dependent, not a general
+property of reranking.** At 263 chunks (`fssai_large`) and again on the
+independently-authored 40-question v2 benchmark, dense-only retrieval no
+longer places every gold clause in the top 3, and hybrid+reranker becomes
+the arm with the best multi-clause completeness — real headroom the
+124-chunk/15-question benchmark this page describes could not expose. The
+v2 evaluation also found the reranker's most severe failure to date (q39):
+lexical overload from a common phrase recurring across many chapters
+caused it to demote the actually-relevant chunk below decoys, producing a
+confidently wrong (non-abstained) answer. See README.md's "v2 evaluation"
+section and `reports/v2_evaluation_report.md` for the full, current
+picture — reranking is neither uniformly harmless-but-useless (as this
+page's original analysis found) nor uniformly beneficial; the honest
+result is arm- and question-dependent.

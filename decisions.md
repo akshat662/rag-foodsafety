@@ -569,3 +569,86 @@ tuning, retrieval, or generation ran against them. This secondary
 experiment, by contrast, was designed and run *after* seeing the primary
 result, specifically to probe it — it is confirmatory/exploratory
 follow-up, not a second independent trial, and should be read as such.
+
+## 2026-09-12 — v2 evaluation: 40-question benchmark + 10-question refusal set, frozen before any arm was run
+
+**Why this was run.** The primary and secondary experiments both reused
+the same 15 questions. That leaves the recall@3 = 1.000 claims for hybrid
+RRF and hybrid+rerank untested against a benchmark that wasn't hand-picked
+around the original 3-chapter corpus — a larger, harder, independently
+authored eval set was needed to check whether those claims generalize, or
+whether the original 15 happened to avoid the corpus's harder edges.
+
+**Freeze discipline.** 25 new questions were authored directly from the
+raw FSSAI PDF text across all 9 ingested chapters (`eval/frozen_retrieval_eval_v2_40.json`),
+every gold clause checked against `fssai_large`'s actual stored chunk
+metadata before being accepted, and the file committed to git *before* any
+of the three retrieval arms was queried against any of the 25. The
+original 15 questions are copied byte-identical into the same file (never
+edited) — verified programmatically at write time. `rrf_k`, `candidate_k`,
+chunk sizes, the embedding model, and the reranker model were not touched
+while building this set.
+
+**Refusal set retired, not extended.** The original `data/refusal_set.json`
+(5 questions) could not simply be expanded to 10: 4 of its 5 topics (edible
+oils, fish, fruit/vegetable products, beverages) are now genuinely
+in-scope, since their chapters were ingested for the secondary experiment.
+Treating them as refusal cases in a v2 set would have been factually wrong
+test data, not a stricter benchmark. `data/refusal_set_v2_10.json` keeps
+only the honey question (Chapter 2.8 has never had a source PDF in
+`data/raw/`), converts the carbonated-water question's underlying fact
+into a real, verified retrieval question (q35 in the 40-question set,
+since its ground truth — 145 ppm caffeine — is directly checkable), and
+adds 9 new out-of-scope questions spanning medical-advice,
+info-not-in-corpus, and deliberately non-obvious "plausible but
+unsupported" cases (e.g. a biscuit-moisture question that could tempt a
+weak system into reusing an adjacent, genuinely-in-corpus cereal-flour
+moisture table).
+
+**Generator swap, disclosed.** Stage 1 generation for this pass used
+`gpt-4o-mini` (OpenAI) instead of the primary/secondary experiments'
+`qwen/qwen3.6-27b` (Groq). Reason: Groq's free-tier account is hard-capped
+at a measured 8,000 tokens/minute (see the 2026-08-19 entry above) — a
+120-call batch (40 questions × 3 arms) took over 30 minutes and produced
+repeated `RetryExhaustedError`s under that cap; the same 120 calls
+completed against OpenAI's standard tier in under a minute. This is a
+new, additive config (`src.config.GENERATOR_OPENAI_GPT4O_MINI`) alongside
+the original `GENERATOR`, which is untouched and remains what the deployed
+API (`app/api.py`) actually calls. Consequence, made explicit throughout
+`reports/v2_evaluation_report.md` and `README.md`: retrieval metrics
+(Recall@K, MRR, complete/partial/miss) never call a generator and are
+directly comparable to every previously published number; RAGAS metrics
+(Faithfulness, Answer Relevancy, Context Precision, Context Recall) and
+the refusal-set abstention rate are generator-dependent and are compared
+only within this v2 pass (old-15-subset vs. new-25-subset, both under
+`gpt-4o-mini`), never against the historical Qwen-generator numbers.
+Generator and judge (`gpt-5-mini`) are now both OpenAI models — a
+disclosed reduction in the cross-vendor separation the original design
+used to reduce (not eliminate) judge self-preference risk, not a
+methodology upgrade.
+
+**Cost.** RAGAS judging: 480 real API calls, actual spend $0.4516 (dry-run
+estimate: $0.52), well under the $3 budget cap. Stage 1 generation on
+`gpt-4o-mini` and the refusal-set run were not separately cost-tracked but
+are of the same order of magnitude or smaller per call.
+
+**Headline outcome.** Hybrid RRF's recall@3 = 1.000 claim holds at n=40.
+Two things only became visible at this scale: hybrid+rerank's recall@1
+(0.850) is measurably below plain dense's (0.875) across the full 40 — not
+apparent in the old 15-question benchmark — and the q13/q14
+dense-vs-Chapter-2.2 vocabulary collision reproduced itself on an
+independently-written new question (q16), evidence it's a systemic corpus
+property rather than a two-question coincidence. The single worst outcome
+in the whole evaluation is q39 (new question): the reranker demoted the
+actually-relevant clove clause below two decoys sharing the query's most
+distinctive phrase ("acid insoluble ash"), and the generator answered
+confidently about the wrong product with no hedge — the only failure in
+this evaluation that degrades into a confidently wrong answer rather than
+an abstention or a correct-but-incomplete one. Full detail:
+`reports/v2_evaluation_report.md`.
+
+**This does not replace the primary or secondary results**, and is not a
+remediation pass — no chunking, retrieval, prompt, or config change was
+made in response to any failure this evaluation found. It is a third,
+larger, harder diagnostic pass, run and reported with the same
+freeze-before-testing discipline as the two before it.

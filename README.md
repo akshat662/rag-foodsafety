@@ -108,6 +108,96 @@ the primary experiment's null result was, at least in part, scale-dependent.
 See [When a faithful answer is still wrong](#when-a-faithful-answer-is-still-wrong)
 for what's actually behind that separation.
 
+### v2 evaluation — frozen 40-question benchmark, run after the secondary experiment (263 chunks, 9 chapters)
+
+The primary and secondary experiments above share one eval set: the same
+15 questions, reused across both corpus sizes. That leaves an open
+question the secondary experiment couldn't answer on its own — do the
+recall@3 = 1.000 claims for hybrid RRF and hybrid + reranker survive a
+*larger, harder, independently-authored* benchmark, not just a bigger
+corpus under the same 15 questions?
+
+25 new questions were authored directly from the FSSAI PDF text across all
+9 ingested chapters (`eval/frozen_retrieval_eval_v2_40.json`) — every gold
+clause verified against the corpus's real stored metadata — and frozen
+*before* any retrieval arm was run against them. The original 15 are kept
+byte-identical inside the same file. A companion refusal set
+(`data/refusal_set_v2_10.json`) retires 4 of the 5 original refusal
+questions (their chapters are now ingested, so they're no longer
+out-of-scope) and adds 9 new ones. Full writeup, including a per-question
+error-analysis table for every retrieval failure: `reports/v2_evaluation_report.md`.
+
+**Methodology change, disclosed:** Stage 1 generation for this pass used
+`gpt-4o-mini` (OpenAI), not the primary/secondary experiments' `qwen/qwen3.6-27b`
+(Groq) — Groq's free-tier account is hard-capped at a measured 8,000
+tokens/minute, which made a 120-call batch impractically slow. **Retrieval
+metrics below are generator-independent and directly comparable to every
+number above. RAGAS metrics are not** — they're compared only within this
+v2 pass (old-15-subset vs. new-25-subset, same generator throughout), never
+against the primary/secondary experiments' Qwen-generator numbers.
+
+**Recall@K (all 40 questions, any-gold-clause-hit, same scoring as the secondary experiment's table above):**
+
+| Arm | recall@1 | recall@3 | recall@5 | MRR |
+|---|---|---|---|---|
+| Dense | 0.875 | 0.925 | 1.000 | 0.918 |
+| Hybrid RRF | 0.975 | **1.000** | 1.000 | 0.988 |
+| Hybrid + reranker | 0.850 | **1.000** | 1.000 | 0.925 |
+
+Hybrid RRF's recall@3 = 1.000 claim holds at n=40, on a benchmark that adds
+sibling-disambiguation, cross-chapter homonym collisions, and multi-clause
+questions the original 15 never tested. But two things only became visible
+at this scale: **hybrid + reranker's recall@1 (0.850) is now measurably
+below plain dense's (0.875)** — the reranker demotes some correct top-1
+hits even as it reliably recovers them by k=3 — and the q13/q14
+dense-vs-Chapter-2.2 vocabulary collision (see below) **reproduced itself
+on an independently-written new question (q16)**, evidence it's a
+systemic corpus property, not a two-question coincidence.
+
+**Multi-clause questions (9 of 40) — complete/partial/miss at k=3, the actual production window:**
+
+| Arm | Complete | Partial | Miss |
+|---|---|---|---|
+| Dense | 0.556 | 0.222 | 0.222 |
+| Hybrid RRF | 0.667 | 0.333 | 0.000 |
+| Hybrid + reranker | 0.778 | 0.222 | 0.000 |
+
+**Refusal set (10 questions, gpt-4o-mini generator):** Dense 10/10 correct
+abstentions, Hybrid RRF 9/10, Hybrid + reranker 9/10. Both misses are the
+same question — a deliberately non-obvious case asking about biscuit
+moisture content, which this corpus does not standardize; both hybrid arms
+retrieved an unrelated Chapter 2.4 grain/starch moisture table (a genuine
+12.0% limit — for a different product) and presented its number as if it
+answered the biscuit question. Dense abstained correctly. Full detail in
+`reports/v2_evaluation_report.md`, Section 4.
+
+## The q39 lexical-overload reranker failure
+
+**q39** (v2 evaluation): *"Which has the stricter (lower) maximum
+acid-insoluble-ash limit: powdered cloves or cocoa powder?"* Ground truth:
+cloves 0.5%, cocoa powder 1.0% — cloves is stricter. The phrase "acid
+insoluble ash" / "ash insoluble in dilute HCl" recurs in more than 10
+places across the corpus (the entire Chapter 2.9 spice family, several
+Chapter 2.7 cocoa/confectionery clauses, Chapter 2.3's chicory and
+Chapter 2.4's yellow pea powder).
+
+| Arm | Retrieved | Answer |
+|---|---|---|
+| Dense | 2.7.7, **2.9.6**, 2.3.54 | Correct: cloves 0.5%, cocoa 1.0% |
+| Hybrid RRF | **2.9.6**, 2.9.24-26, 2.7.7 | Correct: cloves 0.5%, cocoa 1.0% |
+| Hybrid + reranker | 2.7.7, 2.10.3-4, 2.4.36-37 | **Wrong**: "cocoa powder... vs. yellow pea powder... making yellow pea powder the stricter limit" |
+
+This is the single worst outcome in the v2 evaluation. Unlike every other
+retrieval failure found (which degrades into a correct abstention or a
+correct-but-incomplete answer), the reranker here demoted the actually
+relevant clove clause (true rank 10) below two lexically-similar decoys,
+and the generator answered confidently about a product the question never
+asked about, with no hedge. It's a clean illustration that a cross-encoder
+reranker optimizes each candidate's relevance to the query text in
+isolation — when several candidates share the query's most distinctive
+phrase, nothing in the reranking step itself knows which one is about the
+actual product named in the question.
+
 ## Performance
 
 Load-tested locally: single Docker container, Apple M3, 8 cores / 16 GB
@@ -228,6 +318,15 @@ correct figure — since those are the only questions faithfulness/relevancy
 scoring is unambiguously testing *this* system rather than partially
 rewarding what the base model already knew.
 
+The v2 evaluation (previous section) follows the identical discipline at
+larger scale: 40 questions frozen in git (`eval/frozen_retrieval_eval_v2_40.json`)
+and a 10-question refusal set (`data/refusal_set_v2_10.json`) frozen
+*before* any of the three arms was run against either — including the
+25 newly-authored questions, which were written and clause-verified
+against the raw corpus text with zero visibility into how any retriever
+would perform on them. Ground truth was never inferred from a retriever's
+output.
+
 Full evaluation history — including two RAGAS/GPT-5-mini compatibility
 bugs found and fixed during the pilot, cost estimates vs. actual spend, and
 every methodological decision along the way — is in `decisions.md`.
@@ -328,9 +427,13 @@ favor of a more superficially relevant fragment. Full detail:
 
 ## Limitations
 
-- **n=15.** Differences below ~0.03 between arms are noise at this sample
-  size, not a reliable signal — this applies to both the primary and
-  secondary experiments' tables above.
+- **n=15 (primary/secondary experiments only).** Differences below ~0.03
+  between arms are noise at this sample size, not a reliable signal — this
+  applies to the primary and secondary experiments' tables above. The v2
+  evaluation (40 questions) supersedes this caveat for retrieval metrics,
+  but its RAGAS metrics are a different generator (see below) and not
+  directly poolable with the primary/secondary RAGAS numbers to increase
+  effective n.
 - **The primary recall@k table's generating script was not committed.** It
   predates this repository's committed history, so the table was
   reproduced empirically rather than re-run: testing candidate metric
@@ -339,10 +442,16 @@ favor of a more superficially relevant fragment. Full detail:
   averaged over questions — as the only rule reproducing the published
   figures to three decimals. All other run artifacts are committed under
   `runs/`.
-- **RAGAS metrics are LLM-judged**, not ground-truth measurements. The
-  generator and the judge (`qwen/qwen3.6-27b` vs. `gpt-5-mini`) are
-  different model families, which limits (but doesn't eliminate) the judge
-  favoring outputs that resemble its own style.
+- **RAGAS metrics are LLM-judged**, not ground-truth measurements. In the
+  primary/secondary experiments, the generator and the judge
+  (`qwen/qwen3.6-27b` vs. `gpt-5-mini`) are different model families and
+  different vendors, a design choice intended to reduce (not eliminate) the
+  risk of the judge favoring outputs that resemble its own style. **The v2
+  evaluation's generator was switched to `gpt-4o-mini` (OpenAI) purely for
+  Groq rate-limit reasons — see below — so v2's generator and judge are
+  both OpenAI, though still different model generations. This is a
+  disclosed reduction in that separation, not an upgrade, and v2's RAGAS
+  numbers should not be read as validating cross-vendor bias elimination.**
 - **RAGAS penalizes abstentions on faithfulness.** In our runs,
   abstentions scored low on faithfulness — 0.0 on q07 (primary), 0.25 on
   q14 (secondary) — despite the generator correctly declining to answer.
@@ -356,20 +465,41 @@ favor of a more superficially relevant fragment. Full detail:
   degradation reported above already appears at this more modest 2.1x
   scale; whether it worsens, plateaus, or is specific to which chapters
   were added is untested.
-- **The refusal set is no longer out-of-scope for the large collection.**
+- **The original refusal set is retired, not just stale.**
   `data/refusal_set.json`'s 5 questions (honey, edible oils, canned fish,
   fruit jam, carbonated water) were frozen and validated — 15/15 correct
   abstentions across all three arms — against the **primary** 3-chapter
-  corpus, where all 5 topics are genuinely absent. That's no longer true
-  for `fssai_large`: chapters 2.2 (fats/oils), 2.3 (fruit/vegetable), 2.6
-  (fish), and 2.10 (beverages) are now ingested. The 15/15 result applies
-  to the primary experiment only; refusal was not re-run or re-reported
-  against the large corpus.
+  corpus, where all 5 topics were genuinely absent. Once the corpus grew to
+  9 chapters, 4 of those 5 topics (oils, fish, fruit/veg, beverages) became
+  genuinely in-scope and answerable, making them factually wrong test data
+  rather than a stricter benchmark. `data/refusal_set_v2_10.json` replaces
+  it: only the honey question survives, the carbonated-water question's
+  fact was converted into a real, verified retrieval question (q35 in the
+  v2 set), and 9 new out-of-scope questions were added. See the v2
+  evaluation section above and `reports/v2_evaluation_report.md` for
+  results.
 - **The secondary experiment was run after seeing the primary results**,
   specifically to probe the primary null result. It is confirmatory/
   exploratory follow-up, not a second independent trial, and its questions
   and ground truth are the same 15 the primary experiment used (no new
   eval set was written).
+- **The v2 evaluation is not deployed.** `app/api.py` serves the primary
+  `fssai_regulations` collection with the original `qwen/qwen3.6-27b`
+  generator (`src.config.GENERATOR`, unchanged); the 40-question benchmark,
+  the v2 refusal set, and the `gpt-4o-mini` generator all exist only inside
+  the evaluation harness (`eval/`, `scripts/`, `runs/`), never in the
+  served API. The 40-question retrieval numbers are a real property of the
+  same retrieval code the API calls (they don't depend on generator
+  choice), but the 9/10 refusal figure and the v2 RAGAS numbers describe
+  the evaluation-only `gpt-4o-mini` generator, not what a live request
+  through the deployed API actually produces — `qwen/qwen3.6-27b` was never
+  run against the v2 refusal set.
+- **q39 (v2 evaluation) is the most severe failure found in this project so
+  far**: a confidently wrong, non-abstained answer caused by reranker
+  lexical overload (see above), on a question that was written and frozen
+  before any arm was run against it. It has not been fixed — this
+  evaluation pass is diagnostic, not a remediation; no chunking, retrieval,
+  or prompt change was made in response to it.
 - **Table extraction degrades column alignment in wide tables** — some
   chunked table content in the corpus has columns that no longer line up
   cleanly after PDF text extraction, which can make a chunk harder to read
