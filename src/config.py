@@ -44,6 +44,30 @@ GENERATOR = ProviderConfig(
     temperature=0.0,
 )
 
+# Alternate generator, added for the v2 (40-question) evaluation pass ONLY,
+# because GENERATOR's Groq free-tier account is hard-capped at 8,000 TPM
+# (measured, not assumed -- see decisions.md 2026-08-19), which made a
+# 120-call generation batch take 30-40+ minutes of real wall-clock time.
+# GENERATOR itself is left completely untouched above so the original Day 3
+# Qwen/Groq generations remain reproducible on request; this is an
+# additional, explicitly-labeled config, not a replacement.
+# Model choice: gpt-4o-mini, deliberately NOT gpt-5-mini, so the generator
+# and JUDGE (also OpenAI) are still different model generations/families --
+# the same self-preference-bias concern that motivated GENERATOR being a
+# different vendor from JUDGE in the first place (see below) is only
+# partially mitigated here (both are now OpenAI), and this is called out
+# explicitly in the v2 evaluation report rather than left implicit.
+# Rate limits below are a reasonable standard-tier planning ceiling for a
+# paid OpenAI account, NOT independently measured the way GENERATOR's Groq
+# limits were -- if wrong, the existing rate_limiter/retry logic degrades
+# gracefully (more 429 backoff), it does not fail silently.
+GENERATOR_OPENAI_GPT4O_MINI = ProviderConfig(
+    provider="openai",
+    model="gpt-4o-mini",
+    rate_limits=RateLimits(rpm=500, tpm=200_000, rpd=10_000, tpd=5_000_000),
+    temperature=0.0,
+)
+
 # RAGAS judging.
 # Selected over gpt-4o-mini on 2026-08-21 — see decisions.md for the full
 # reasoning (cost difference vs. gpt-4o-mini was negligible against the

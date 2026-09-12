@@ -33,8 +33,13 @@ import chromadb
 from chromadb import Collection
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 
-from src.config import GENERATOR, RETRIEVAL
+from src.config import GENERATOR, GENERATOR_OPENAI_GPT4O_MINI, RETRIEVAL, ProviderConfig
 from src.generate import generate
+
+GENERATOR_CHOICES: dict[str, ProviderConfig] = {
+    "groq": GENERATOR,
+    "openai_gpt4o_mini": GENERATOR_OPENAI_GPT4O_MINI,
+}
 from src.ingest import COLLECTION_NAME as PRIMARY_COLLECTION_NAME
 from src.ingest import EMBEDDING_MODEL_NAME
 from src.rate_limiter import estimate_tokens
@@ -94,7 +99,9 @@ def _chunk_id(chunk: Chunk) -> str:
     return hashlib.sha1(key.encode()).hexdigest()[:12]
 
 
-def _generate_with_retries(question: str, chunks: list[Chunk]) -> tuple[Any, int]:
+def _generate_with_retries(
+    question: str, chunks: list[Chunk], generator_config: ProviderConfig = GENERATOR
+) -> tuple[Any, int]:
     """Call src.generate.generate, retrying up to MAX_GENERATION_RETRIES times.
 
     The rate limiter (src/rate_limiter.py) already retries 429s internally;
@@ -105,7 +112,7 @@ def _generate_with_retries(question: str, chunks: list[Chunk]) -> tuple[Any, int
     last_exc: Exception | None = None
     for attempt in range(1, MAX_GENERATION_RETRIES + 1):
         try:
-            return generate(question, chunks), attempt
+            return generate(question, chunks, generator_config=generator_config), attempt
         except Exception as exc:  # noqa: BLE001 - deliberately broad: any failure retries
             last_exc = exc
     raise last_exc
@@ -139,12 +146,14 @@ def _load_completed(output_path: Path) -> set[tuple[str, str]]:
     return completed
 
 
-def _write_run_metadata(run_dir: Path, collection: Collection | None = None) -> None:
+def _write_run_metadata(
+    run_dir: Path, collection: Collection | None = None, generator_config: ProviderConfig = GENERATOR
+) -> None:
     config = {
         "generator": {
-            "provider": GENERATOR.provider,
-            "model": GENERATOR.model,
-            "temperature": GENERATOR.temperature,
+            "provider": generator_config.provider,
+            "model": generator_config.model,
+            "temperature": generator_config.temperature,
         },
         "retrieval": asdict(RETRIEVAL),
         "embedding_model": EMBEDDING_MODEL_NAME,
@@ -162,7 +171,12 @@ def _write_run_metadata(run_dir: Path, collection: Collection | None = None) -> 
     (run_dir / "git_commit.txt").write_text(_git_commit() + "\n")
 
 
-def _run_one(question: dict, arm: str, collection: Collection | None = None) -> dict:
+def _run_one(
+    question: dict,
+    arm: str,
+    collection: Collection | None = None,
+    generator_config: ProviderConfig = GENERATOR,
+) -> dict:
     question_id = question["id"]
     question_text = question["question"]
 
@@ -180,7 +194,7 @@ def _run_one(question: dict, arm: str, collection: Collection | None = None) -> 
     t1 = time.monotonic()
 
     try:
-        result, attempts = _generate_with_retries(question_text, chunks)
+        result, attempts = _generate_with_retries(question_text, chunks, generator_config=generator_config)
     except Exception as exc:  # noqa: BLE001 - one bad pair must not kill the run
         return {
             "question_id": question_id,
@@ -223,12 +237,17 @@ def _run_one(question: dict, arm: str, collection: Collection | None = None) -> 
     }
 
 
-def run(run_id: str, questions_path: Path, collection: Collection | None = None) -> None:
+def run(
+    run_id: str,
+    questions_path: Path,
+    collection: Collection | None = None,
+    generator_config: ProviderConfig = GENERATOR,
+) -> None:
     run_dir = RUNS_DIR / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     output_path = run_dir / "generations.jsonl"
 
-    _write_run_metadata(run_dir, collection=collection)
+    _write_run_metadata(run_dir, collection=collection, generator_config=generator_config)
 
     questions = _load_questions(questions_path)
     completed = _load_completed(output_path)
@@ -244,7 +263,7 @@ def run(run_id: str, questions_path: Path, collection: Collection | None = None)
                     skipped += 1
                     continue
 
-                row = _run_one(question, arm, collection=collection)
+                row = _run_one(question, arm, collection=collection, generator_config=generator_config)
                 out.write(json.dumps(row) + "\n")
                 out.flush()
                 done += 1
@@ -278,6 +297,14 @@ def main() -> None:
         default=None,
         help="Override the Chroma persist directory (default: data/chroma, primary).",
     )
+    parser.add_argument(
+        "--generator",
+        default="groq",
+        choices=list(GENERATOR_CHOICES),
+        help="Which generator config to use (default: groq, the frozen Day 3 Qwen generator). "
+        "'openai_gpt4o_mini' is the faster alternate generator added for the v2 evaluation pass "
+        "when Groq's free-tier rate limit made a large batch impractically slow.",
+    )
     args = parser.parse_args()
 
     collection: Collection | None = None
@@ -290,7 +317,7 @@ def main() -> None:
         )
 
     run_id = args.run_id or time.strftime("%Y%m%d_%H%M%S")
-    run(run_id, Path(args.questions), collection=collection)
+    run(run_id, Path(args.questions), collection=collection, generator_config=GENERATOR_CHOICES[args.generator])
 
 
 if __name__ == "__main__":

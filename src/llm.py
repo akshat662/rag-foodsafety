@@ -10,10 +10,10 @@ import json
 import os
 from abc import ABC, abstractmethod
 
-from src.config import GENERATOR, JUDGE, ProviderConfig
+from src.config import GENERATOR, GENERATOR_OPENAI_GPT4O_MINI, JUDGE, ProviderConfig
 from src.rate_limiter import RateLimiter, estimate_tokens
 
-_KNOWN_CONFIGS: tuple[ProviderConfig, ...] = (GENERATOR, JUDGE)
+_KNOWN_CONFIGS: tuple[ProviderConfig, ...] = (GENERATOR, GENERATOR_OPENAI_GPT4O_MINI, JUDGE)
 
 
 class LLMClient(ABC):
@@ -91,27 +91,74 @@ class GroqLLMClient(LLMClient):
 
 
 class OpenAILLMClient(LLMClient):
-    """Reserved for the OpenAI-backed RAGAS judge (src/config.py JUDGE).
+    """OpenAI-backed LLMClient, used for the v2 evaluation's alternate
+    generator (src.config.GENERATOR_OPENAI_GPT4O_MINI). Note: the real RAGAS
+    judging path (eval/run_ragas.py) does NOT go through this class -- it
+    talks to OpenAI via langchain_openai.ChatOpenAI directly, because ragas's
+    metric objects require a LangchainLLMWrapper. This class exists only for
+    generation calls routed through src.generate.generate.
 
-    Not implemented yet: the OpenAI API account and exact judge model are
-    still pending (see JUDGE.model = "TBD" in src/config.py). This stub
-    exists so the provider registry and uniform interface don't need to
-    change shape when OpenAI support is added.
+    The `openai` SDK is imported lazily inside `_get_client`, matching
+    GroqLLMClient's pattern, so this module stays importable without the
+    SDK installed or any network access.
     """
 
     def __init__(self, provider_config: ProviderConfig):
-        raise NotImplementedError(
-            "OpenAI provider is not implemented yet; JUDGE configuration is pending "
-            "(src/config.py)"
-        )
+        super().__init__(provider_config)
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY environment variable is not set")
+        self._api_key = api_key
+        self._client = None
+
+    def _get_client(self):
+        if self._client is None:
+            import openai
+
+            self._client = openai.OpenAI(api_key=self._api_key)
+        return self._client
+
+    def _call_kwargs(self) -> dict:
+        """gpt-5-family reasoning models take reasoning_effort and reject a
+        non-default temperature; other OpenAI chat models take temperature.
+        Mirrors the same distinction eval/run_ragas.py's real judging path
+        already makes for the JUDGE config.
+        """
+        if self.provider_config.model.startswith("gpt-5"):
+            kwargs: dict = {}
+            if self.provider_config.reasoning_effort is not None:
+                kwargs["reasoning_effort"] = self.provider_config.reasoning_effort
+            return kwargs
+        return _temperature_kwargs(self.provider_config)
 
     def generate(self, prompt: str, *, system: str | None = None) -> str:
-        raise NotImplementedError
+        messages = _build_messages(prompt, system)
+
+        def call():
+            response = self._get_client().chat.completions.create(
+                model=self.provider_config.model,
+                messages=messages,
+                **self._call_kwargs(),
+            )
+            return response.choices[0].message.content
+
+        return self._rate_limiter.call(call, estimated_tokens=_estimate_message_tokens(messages))
 
     def generate_structured(
         self, prompt: str, schema: dict, *, system: str | None = None
     ) -> dict:
-        raise NotImplementedError
+        messages = _build_messages(prompt, system, schema=schema)
+
+        def call():
+            response = self._get_client().chat.completions.create(
+                model=self.provider_config.model,
+                messages=messages,
+                response_format={"type": "json_object"},
+                **self._call_kwargs(),
+            )
+            return json.loads(response.choices[0].message.content)
+
+        return self._rate_limiter.call(call, estimated_tokens=_estimate_message_tokens(messages))
 
 
 _PROVIDERS: dict[str, type[LLMClient]] = {

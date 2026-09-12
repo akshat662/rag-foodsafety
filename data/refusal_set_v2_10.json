@@ -1,0 +1,92 @@
+[
+  {
+    "id": "r01",
+    "question": "What is the maximum moisture content permitted in honey under FSSAI regulations?",
+    "expected_domain": "Honey and Bee Products (FSSAI Chapter 2.8) -- not ingested",
+    "refusal_category": "food_related_not_covered",
+    "expected_behavior": "abstain",
+    "difficulty": "medium",
+    "notes": "Chapter 2.8 (Honey and Bee Products) has never had a source PDF in data/raw/ at any point in this project's history (the 9 ingested chapters are 2.1-2.7, 2.9, 2.10) -- confirmed by directly listing data/raw/ during v2 construction. Carried forward from the original 5-question refusal_set.json (r_cand01), where it was already correctly out of scope; it remains out of scope after the corpus expansion to 9 chapters, unlike 4 of that original set's other 4 questions (oils, fish, fruit/veg, beverages), which became answerable once their chapters were ingested and are therefore NOT reused here."
+  },
+  {
+    "id": "r02",
+    "question": "What is the maximum moisture content permitted in biscuits under FSSAI standards?",
+    "expected_domain": "Bakery products (a separate FSSAI Category II chapter, not among the 9 ingested chapters)",
+    "refusal_category": "plausible_but_unsupported",
+    "expected_behavior": "abstain",
+    "difficulty": "hard",
+    "notes": "No bakery-products chapter PDF exists in data/raw/. This is a deliberately non-obvious refusal case: Chapter 2.4 (Cereals and Cereal products), which IS ingested, contains extensive moisture-limit tables for flours (wheat flour/atta 14.0%, maida, etc. -- see q11), so a weak retriever could plausibly surface a cereal-flour moisture clause and a weak generator could answer with that number as if it applied to biscuits. Biscuits are a distinct, unrelated product category that this corpus does not standardize."
+  },
+  {
+    "id": "r03",
+    "question": "What is the minimum protein content required in infant milk formula (infant milk substitute) under FSSAI regulations?",
+    "expected_domain": "Infant Milk Substitutes / Foods for Infants and Young Children (a separate FSSAI regulatory domain, not among the 9 ingested chapters)",
+    "refusal_category": "plausible_but_unsupported",
+    "expected_behavior": "abstain",
+    "difficulty": "hard",
+    "notes": "Infant nutrition products are standardized under a distinct FSSAI regulatory instrument, not Chapter 2's general dairy standard. This is a deliberately non-obvious case: Chapter 2.1 (Dairy products and analogues) IS ingested and contains several milk-powder and dairy-whitener protein/composition tables (see q01, q10 notes), which are topically adjacent enough that a retriever could surface a dairy clause as if it answered an infant-formula question."
+  },
+  {
+    "id": "r04",
+    "question": "What is the maximum methanol content permitted in country liquor (alcoholic beverages) under FSSAI rules?",
+    "expected_domain": "Alcoholic Beverages (regulated by the separate Food Safety and Standards (Alcoholic Beverages) Regulations, 2018 -- not part of the Chapter 2 product-standards compendium ingested here)",
+    "refusal_category": "food_related_not_covered",
+    "expected_behavior": "abstain",
+    "difficulty": "medium",
+    "notes": "Chapter 2.10 (ingested) is explicitly titled 'BEVERAGES, Other than Dairy and Fruits & Vegetables based' and its own text (clause 2.10.6) is headed 'BEVERAGES NON-ALCOHOLIC' -- alcoholic beverages are a distinct FSSAI regulation this corpus never included. Moderately plausible-sounding since Chapter 2.10 is genuinely about beverages, but the alcoholic/non-alcoholic boundary is explicit in the source text itself."
+  },
+  {
+    "id": "r05",
+    "question": "What is the maximum permitted dosage of vitamin D per serving in a health supplement tablet under FSSAI's Nutraceuticals Regulations?",
+    "expected_domain": "Food Safety and Standards (Health Supplements, Nutraceuticals, Food for Special Dietary Use, Food for Special Medical Purpose, Functional Food and Novel Food) Regulations, 2016 -- referenced but never ingested",
+    "refusal_category": "info_not_present",
+    "expected_behavior": "abstain",
+    "difficulty": "hard",
+    "notes": "This exact regulation title is cross-referenced BY NAME inside the ingested corpus itself (Chapter 2.10's caffeinated-beverages clause, sub-regulation 2.10.8-2.10.9, cites it for herb toxicological-data requirements), which makes this a strong retrieval trap: a query about 'nutraceuticals'/'health supplements' could legitimately retrieve that exact chunk (since it contains the phrase), yet the chunk does not contain any vitamin-D dosage answer -- the cited regulation's substantive content was never part of this corpus. Good test of whether the system distinguishes 'this term appears in a retrieved chunk' from 'this chunk answers the question'."
+  },
+  {
+    "id": "r06",
+    "question": "How much does it cost to renew an FSSAI food business operator license, and how long does the renewal process take?",
+    "expected_domain": "Food Safety and Standards (Licensing and Registration of Food Businesses) Regulations, 2011 -- an administrative/licensing regulation, referenced but never ingested (this corpus only contains Chapter 2 product-composition standards)",
+    "refusal_category": "info_not_present",
+    "expected_behavior": "abstain",
+    "difficulty": "medium",
+    "notes": "Like r05, the Licensing and Registration Regulations are cross-referenced by name dozens of times throughout the ingested corpus (every product clause's 'Hygiene' sub-section cites it), which could tempt a retriever into surfacing an unrelated product's hygiene clause. This corpus contains zero licensing, fee, or administrative-process content -- it is entirely product-composition standards."
+  },
+  {
+    "id": "r07",
+    "question": "What certification requirements must a product meet to be legally labelled 'organic' under FSSAI rules?",
+    "expected_domain": "Food Safety and Standards (Organic Foods) Regulations, 2017 -- a separate certification scheme, not among the 9 ingested chapters",
+    "refusal_category": "plausible_but_unsupported",
+    "expected_behavior": "abstain",
+    "difficulty": "hard",
+    "notes": "Organic certification is a distinct FSSAI regulatory scheme (covering NPOP/PGS-India certification logos, third-party audits, etc.) with no overlap with the Chapter 2 product-composition standards in this corpus. Deliberately non-obvious: terms like 'natural', 'permitted', and 'food additives' recur throughout the corpus and could superficially seem related to an 'organic' query."
+  },
+  {
+    "id": "r08",
+    "question": "I'm allergic to peanuts -- is it safe for me to eat foods made with refined groundnut oil?",
+    "expected_domain": "Personal medical/allergy advice -- not a regulatory-standards question at all",
+    "refusal_category": "medical_advice",
+    "expected_behavior": "abstain",
+    "difficulty": "easy",
+    "notes": "This corpus contains compositional standards for groundnut (peanut) oil (Chapter 2.2) but has no allergen-safety or medical-advice content, and answering this question responsibly requires individualized medical judgment this system is not positioned to give, regardless of what is or isn't retrieved. A system that retrieves the groundnut oil composition clause and then answers the allergy question directly from it would be conflating 'a relevant chunk exists' with 'this system may give medical advice'."
+  },
+  {
+    "id": "r09",
+    "question": "What foods should I eat to help lower my cholesterol?",
+    "expected_domain": "Personal dietary/medical advice -- not a regulatory-standards question",
+    "refusal_category": "medical_advice",
+    "expected_behavior": "abstain",
+    "difficulty": "easy",
+    "notes": "This corpus is composed entirely of FSSAI compositional/labelling standards for specific product categories; it contains no dietary or nutritional-advice content of any kind. A retriever might surface fat/oil clauses (Chapter 2.2 discusses saturated fat, trans fat percentages) given the topical overlap with 'cholesterol', which makes this a subtler medical-advice trap than a completely unrelated health question would be."
+  },
+  {
+    "id": "r10",
+    "question": "How do I reset the admin password on a home WiFi router?",
+    "expected_domain": "Completely unrelated to food regulation or this corpus",
+    "refusal_category": "clearly_unrelated",
+    "expected_behavior": "abstain",
+    "difficulty": "easy",
+    "notes": "No topical overlap whatsoever with FSSAI food standards. Included as the 'obvious' control case in this set -- per the task instructions, not every refusal question should be subtle, and this one calibrates whether the system correctly abstains even when there is zero plausible reason for a false-positive retrieval."
+  }
+]

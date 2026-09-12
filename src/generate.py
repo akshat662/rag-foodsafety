@@ -8,7 +8,7 @@ or direct provider SDK calls happen here.
 
 from dataclasses import dataclass
 
-from src.config import GENERATOR
+from src.config import GENERATOR, ProviderConfig
 from src.llm import get_llm
 from src.retrieval.vector import Chunk
 
@@ -51,18 +51,24 @@ class GeneratedAnswer:
     abstained: bool
 
 
-def generate(question: str, chunks: list[Chunk]) -> GeneratedAnswer:
+def generate(
+    question: str, chunks: list[Chunk], generator_config: ProviderConfig = GENERATOR
+) -> GeneratedAnswer:
     """Generate a grounded answer to `question` using only `chunks` as context.
 
-    Routes through src.llm.get_llm (never a provider SDK directly) using the
-    configured generator (src.config.GENERATOR: groq / openai/gpt-oss-20b).
+    Routes through src.llm.get_llm (never a provider SDK directly) using
+    `generator_config` (default: src.config.GENERATOR, the frozen Groq/Qwen
+    Day 3 generator -- unchanged default behavior for every existing caller
+    that doesn't pass this argument). Pass e.g.
+    src.config.GENERATOR_OPENAI_GPT4O_MINI to use the faster OpenAI-backed
+    alternate generator added for the v2 evaluation pass.
     If `chunks` is empty there is nothing to ground an answer in, so this
     abstains immediately without calling the model.
     """
     if not chunks:
         return GeneratedAnswer(answer=_ABSTENTION_MESSAGE, citations=[], abstained=True)
 
-    llm = get_llm(GENERATOR.provider, GENERATOR.model)
+    llm = get_llm(generator_config.provider, generator_config.model)
     prompt = _build_prompt(question, chunks)
     raw = llm.generate_structured(prompt, schema=_ANSWER_SCHEMA, system=_SYSTEM_PROMPT)
 

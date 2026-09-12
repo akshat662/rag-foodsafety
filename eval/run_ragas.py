@@ -142,9 +142,14 @@ def load_stage1_rows(stage1_run_id: str) -> list[dict]:
     return [r for r in rows if r.get("status") == "ok"]
 
 
-def load_qa_lookup() -> dict[str, dict]:
-    """question_id -> {question, ground_truth} from the frozen QA set. Read-only."""
-    questions = json.loads(QA_SET_PATH.read_text())
+def load_qa_lookup(qa_set_path: Path = QA_SET_PATH) -> dict[str, dict]:
+    """question_id -> {question, ground_truth} from the frozen QA set. Read-only.
+
+    `qa_set_path` defaults to the original 15-question data/qa_set.json
+    (unchanged behavior for every existing caller); pass the v2 40-question
+    path to score the frozen v2 benchmark instead.
+    """
+    questions = json.loads(qa_set_path.read_text())
     return {q["id"]: q for q in questions}
 
 
@@ -314,6 +319,7 @@ def dry_run_estimate(
     stage1_run_id: str,
     judge_model: str,
     pilot_question_ids: set[str] | None = None,
+    qa_set_path: Path = QA_SET_PATH,
 ) -> dict:
     """Full cost estimate over the 45 (or pilot-subset) Stage 1 rows.
 
@@ -328,7 +334,7 @@ def dry_run_estimate(
     is_reasoning = _is_reasoning_model(judge_model)
 
     rows = load_stage1_rows(stage1_run_id)
-    qa = load_qa_lookup()
+    qa = load_qa_lookup(qa_set_path)
     metrics = build_metrics()
     enc = _encoding()
 
@@ -597,6 +603,7 @@ def run_real_evaluation(
     question_ids: set[str] | None = None,
     max_retries: int = MAX_RETRIES,
     budget_cap_usd: float = BUDGET_CAP_USD,
+    qa_set_path: Path = QA_SET_PATH,
 ) -> dict:
     """The actual paid judging run.
 
@@ -686,7 +693,7 @@ def run_real_evaluation(
     rows = load_stage1_rows(stage1_run_id)
     if question_ids is not None:
         rows = [r for r in rows if r["question_id"] in question_ids]
-    qa = load_qa_lookup()
+    qa = load_qa_lookup(qa_set_path)
     enc = _encoding()
     completed = _load_completed_scores(output_path)
 
@@ -834,6 +841,12 @@ def main() -> None:
         help="Comma-separated question_ids to restrict --real to (e.g. q01,q02). All 3 arms still run for each.",
     )
     parser.add_argument("--budget-cap", type=float, default=BUDGET_CAP_USD)
+    parser.add_argument(
+        "--questions",
+        default=str(QA_SET_PATH),
+        help="Path to the frozen QA set with ground_truth (default: data/qa_set.json, 15 questions). "
+        "Pass eval/frozen_retrieval_eval_v2_40.json to score the frozen v2 40-question benchmark.",
+    )
     args = parser.parse_args()
 
     if args.dry_run and args.real:
@@ -843,9 +856,10 @@ def main() -> None:
 
     run_id = args.run_id or f"ragas_{time.strftime('%Y%m%d_%H%M%S')}"
     run_dir = RUNS_DIR / run_id
+    qa_set_path = Path(args.questions)
 
     if args.dry_run:
-        report = dry_run_estimate(args.stage1_run, args.judge_model)
+        report = dry_run_estimate(args.stage1_run, args.judge_model, qa_set_path=qa_set_path)
         write_dry_run_artifacts(run_dir, report, args.stage1_run)
         print(json.dumps(report, indent=2))
         print(f"\nWritten to {run_dir}/")
@@ -859,6 +873,7 @@ def main() -> None:
         reasoning_effort=args.reasoning_effort,
         question_ids=question_ids,
         budget_cap_usd=args.budget_cap,
+        qa_set_path=qa_set_path,
     )
     print(json.dumps(summary, indent=2))
 

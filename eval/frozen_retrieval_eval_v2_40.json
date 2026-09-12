@@ -1,0 +1,621 @@
+[
+  {
+    "id": "q01",
+    "question": "What is the minimum milk fat percentage required for Evaporated Milk (not the partly-skimmed, skimmed, or high-fat variants)?",
+    "ground_truth": "Plain Evaporated Milk must contain a minimum of 7.5% milk fat (m/m).",
+    "source_clauses": [
+      "2.1.4"
+    ],
+    "chapter": "2.1",
+    "difficulty": "hard",
+    "retrieval_type": "sibling_disambiguation",
+    "parametric_known": false,
+    "source_text": "Parameter \nEvaporated \nmilk \n\nEvaporated \npartly \nskimmed \nmilk \nEvaporated \nskimmed \nmilk \nEvaporated \nhigh fat \nmilk \nMilk fat, %, \n(m/m) \n\n7.5 \n(minimum) \nMore than \n1 and \nLess than \n7.5 \n1.0 \n(maximum) \n15.0 \n(minimum)",
+    "notes": "Sibling family: 2.1.2-2.1.13 (Milk, Flavoured Milk, Evaporated Milk, Sweetened Condensed Milk, Khoa, Cream, Milk Fat Products, Butter, Milk Powders, Dairy Whitener, Whey Powder, Fermented Milk) all share near-identical Description/Composition/Additives/Hygiene/Labelling skeletons and most have a 'milk fat %' composition row, so first-stage retrieval is expected to return several siblings; only correctly matching 'Evaporated Milk' distinguishes 2.1.4 from e.g. 2.1.5 (Sweetened Condensed) or 2.1.8 (Milk Fat Products). Parametric check: gpt-oss-20b with no context answered '1%', citing US FDA/EU/Canada standards rather than FSSAI -- does not match."
+  },
+  {
+    "id": "q02",
+    "question": "What is the minimum milk fat percentage required for Table Butter?",
+    "ground_truth": "Table Butter must contain a minimum of 80.0% milk fat (m/m).",
+    "source_clauses": [
+      "2.1.9"
+    ],
+    "chapter": "2.1",
+    "difficulty": "hard",
+    "retrieval_type": "sibling_disambiguation",
+    "parametric_known": true,
+    "source_text": "Parameter \nTable butter \nWhite  butter/ \nCooking butter \nMoisture, maximum, %, \n(m/m) \n16.0 \n-- \nMilk fat, minimum, %, \n(m/m) \n80.0 \n76.0",
+    "notes": "Same sibling family as q01. White/Cooking Butter (76.0%) is the deliberate confusable value within the same clause; other dairy siblings (Ghee 99.5% min, Dairy Whitener variants 1.5-20.0% min) are the cross-clause distractors. Parametric check: gpt-oss-20b answered '80%' with no context -- matches. 80% is a near-universal international butter standard, so this coincides with FSSAI's figure even without corpus-specific knowledge."
+  },
+  {
+    "id": "q03",
+    "question": "What is the minimum gluten content required for Maida (refined wheat flour)?",
+    "ground_truth": "Maida must have a gluten content of not less than 7.5% on a dry mass basis.",
+    "source_clauses": [
+      "2.4.2"
+    ],
+    "chapter": "2.4",
+    "difficulty": "hard",
+    "retrieval_type": "sibling_disambiguation",
+    "parametric_known": false,
+    "source_text": "4. \nGluten, % on dry mass basis (not less \nthan) \n7.5",
+    "notes": "Sibling family: ATTA (2.4.1, gluten >= 6.0%), Maida (2.4.2, >= 7.5%), Semolina (2.4.3, >= 6.0%), Multigrain Atta (2.4.37, >= 3.0%) all share Moisture/Ash/Gluten/Alcoholic-acidity/Uric-acid skeletons with near-identical wording. ATTA is the deliberate confusable sibling since Maida and ATTA descriptions are almost textually identical. Parametric check: gpt-oss-20b answered via a fabricated 'gluten = 70% of protein' framework citing a fake 'IS 1120:1969' standard, landing near 6-7% by coincidence of arithmetic rather than actual knowledge of the direct dry-mass-basis figure -- graded as not matching."
+  },
+  {
+    "id": "q04",
+    "question": "What is the minimum protein content required for Besan (Bengal gram flour)?",
+    "ground_truth": "Besan must have a minimum protein content (N x 6.25) of 20.0% by mass on a dry basis.",
+    "source_clauses": [
+      "2.4.4"
+    ],
+    "chapter": "2.4",
+    "difficulty": "hard",
+    "retrieval_type": "sibling_disambiguation",
+    "parametric_known": false,
+    "source_text": "(4) \nProtein (Nx6.25), % by mass (on dry basis), Not less \nthan \n20.0",
+    "notes": "Distractors: Multigrain Atta (2.4.37, protein >= 10.0%), Mixed Millet Flour (2.4.38, >= 8.0%), Yellow Pea Powder (2.4.36, >= 22.0%) -- all flour-type clauses with a 'protein...not less than' row, retrievable by a bare 'minimum protein flour' query. Parametric check: gpt-oss-20b answered '23.5%', citing a fake 'IS 10520:2002' standard -- does not match."
+  },
+  {
+    "id": "q05",
+    "question": "What is the maximum acid-insoluble ash permitted in Cardamom (Chhoti Elaichi) powder?",
+    "ground_truth": "Cardamom (Chhoti Elaichi) powder must not contain more than 3.0% ash insoluble in dilute HCl, on a dry basis.",
+    "source_clauses": [
+      "2.9.2"
+    ],
+    "chapter": "2.9",
+    "difficulty": "hard",
+    "retrieval_type": "sibling_disambiguation",
+    "parametric_known": false,
+    "source_text": "(iii) \nAsh insoluble in dilute HCl on \ndry basis. \nNot more than 3.0 percent by \nweight",
+    "notes": "This is the largest sibling family in the corpus -- essentially every spice clause 2.9.1-2.9.45 has a 'whole' and 'powder' sub-item with a near-identical 'Ash insoluble in dilute HCl' line, differing only in the numeric limit (e.g. Caraway powder 1.5%, Cinnamon powder 2.0%, Cassia powder 1.0%, Cloves powder 0.5%, Mace powder 0.5%). Parametric check: gpt-oss-20b answered '0.5%', citing a fake 'IS 12383' standard -- does not match (this is actually the Cloves powder value from q12, suggesting cross-contamination/confusion between spice siblings in the model's memory)."
+  },
+  {
+    "id": "q06",
+    "question": "What is the maximum permitted urea content in milk, under FSSAI standards?",
+    "ground_truth": "The total urea content in milk shall not exceed 700 ppm.",
+    "source_clauses": [
+      "2.1.2"
+    ],
+    "chapter": "2.1",
+    "difficulty": "easy",
+    "retrieval_type": "lexical",
+    "parametric_known": false,
+    "source_text": "4. \nContaminants, Toxins and Residues. - \n(a) The products shall comply with the Food Safety and Standards \n(Contaminants, toxins and Residues) Regulations, 2011. \n(b) The total urea content in milk shall not be more than 700 ppm.",
+    "notes": "'Urea' + '700 ppm' is a rare, distinctive token combination unique to this one line in the corpus -- a clean Ctrl+F/BM25 target. Parametric check: gpt-oss-20b answered '2.5 mg per 100mL' (= 25 ppm, off by 28x from the actual 700 ppm limit) -- does not match."
+  },
+  {
+    "id": "q07",
+    "question": "What is the maximum permitted level of Lecithins (INS 322) in formulated supplements for children?",
+    "ground_truth": "Lecithins (INS 322) may be used up to a maximum level of 1500 mg per 100 g of the product ready for consumption.",
+    "source_clauses": [
+      "2.4.11"
+    ],
+    "chapter": "2.4",
+    "difficulty": "easy",
+    "retrieval_type": "lexical",
+    "parametric_known": false,
+    "source_text": "INS No. \nAdditive \nMaximum level \nEmulsifiers \n322 \nLecithins \n1500 mg \n471 \nMono- and diglycerides \n500 mg  \nSingly or in combination",
+    "notes": "INS number 322 is a rare, exact-match anchor -- the classic lexical pattern (additive with an INS code and numeric limit). Distinguish from INS 471/472a/b/c which share a separate 500mg combined limit in the same table. Parametric check: gpt-oss-20b answered '5%' referencing EU infant-formula regulation -- wrong domain (this corpus clause is specifically 'formulated supplements for children age 24-36 months', not infant formula) and does not match the FSSAI-specific figure."
+  },
+  {
+    "id": "q08",
+    "question": "What is the maximum coumarin content permitted in cinnamon (Dalchini), on a dry basis?",
+    "ground_truth": "Cinnamon (Dalchini) must not contain more than 0.3% coumarin by weight, on a dry basis.",
+    "source_clauses": [
+      "2.9.4"
+    ],
+    "chapter": "2.9",
+    "difficulty": "easy",
+    "retrieval_type": "lexical",
+    "parametric_known": false,
+    "source_text": "32[(vii) \nCoumarin content (on dry basis) \nNot more than 0.3 percent by \nweight]",
+    "notes": "'Coumarin' is a highly distinctive chemical term that appears nowhere else in the ingested corpus -- near-ideal lexical anchor. Same 0.3% limit applies to both whole and powder cinnamon within clause 2.9.4. Parametric check: gpt-oss-20b answered '1mg/kg (~1ppm)' citing EU regulation 2021/1967 -- off by roughly three orders of magnitude from the actual 0.3% (3000 ppm) FSSAI limit; does not match."
+  },
+  {
+    "id": "q09",
+    "question": "What is the minimum allyl isothiocyanate content required in Brassica nigra mustard seeds, on a dry basis?",
+    "ground_truth": "Whole mustard seeds of the Brassica nigra variety must contain at least 1.0% allyl isothiocyanate (m/m) on a dry basis.",
+    "source_clauses": [
+      "2.9.13"
+    ],
+    "chapter": "2.9",
+    "difficulty": "easy",
+    "retrieval_type": "lexical",
+    "parametric_known": false,
+    "source_text": "(ix) Allyl iso thiocyanate (m/m) on dry \nbasis \n(a) B nigra \nNot less than 1.0 percent \nby weight \n(b) B Juncea \nNot less than 0.7 percent \nby weight",
+    "notes": "'Allyl iso thiocyanate' and 'B nigra' are rare, distinctive terms unique to this line. Brassica juncea's 0.7% is the deliberate confusable sibling value in the same clause. Parametric check: gpt-oss-20b answered '5%', citing a fake 'ISO 17043:2005' standard -- 5x the actual value; does not match."
+  },
+  {
+    "id": "q10",
+    "question": "How much water is whey powder permitted to retain, at most, before it no longer meets the FSSAI standard?",
+    "ground_truth": "Whey Powder must not contain more than 5.0% moisture by mass.",
+    "source_clauses": [
+      "2.1.12"
+    ],
+    "chapter": "2.1",
+    "difficulty": "medium",
+    "retrieval_type": "semantic",
+    "parametric_known": true,
+    "source_text": "(c)     Composition. – \nThe product shall conform to the compositional specifications provided in \nthe table below:  ̅ \nParameter \nWhey Powder \nAcid Whey \nPowder \nMoisture(i), \nmaximum, \n%, \n(m/m)  \n5.0 \n4.5",
+    "notes": "Question avoids the word 'moisture' entirely (uses 'water'/'retain') to force a semantic rather than lexical match. Acid Whey Powder's 4.5% is the confusable sibling value in the same clause. Parametric check: gpt-oss-20b answered '5%' with no context -- matches."
+  },
+  {
+    "id": "q11",
+    "question": "What is the maximum amount of water permitted in wheat flour (atta) before it is considered out of specification?",
+    "ground_truth": "Wheat Flour (Atta) must not contain more than 14.0% moisture by mass.",
+    "source_clauses": [
+      "2.4.1"
+    ],
+    "chapter": "2.4",
+    "difficulty": "medium",
+    "retrieval_type": "semantic",
+    "parametric_known": false,
+    "source_text": "1. \nMoisture, % by mass, Not more \nthan \n14.0",
+    "notes": "Avoids the word 'moisture'; 'water' and 'out of specification' are the paraphrased substitutes for 'moisture' and 'not more than'. Parametric check: gpt-oss-20b answered '11.5%', citing a fake 'IS 10300:2001' standard -- does not match."
+  },
+  {
+    "id": "q12",
+    "question": "For ground cloves, what is the maximum share of mineral residue that survives dilute acid treatment, expressed as a percentage of dry weight?",
+    "ground_truth": "Ground (powdered) cloves must not contain more than 0.5% ash insoluble in dilute HCl, on a dry basis.",
+    "source_clauses": [
+      "2.9.6"
+    ],
+    "chapter": "2.9",
+    "difficulty": "medium",
+    "retrieval_type": "semantic",
+    "parametric_known": true,
+    "source_text": "It shall conform to the following standards:— \n(i) Moisture \nNot more than 10.0 percent by\nweight \n(ii) Total ash on dry basis \nNot more than 7.0 percent by \nweight \n(iii) Ash insoluble in dilute HCl on dry \nbasis. \nNot more than 0.5 percent by \nweight",
+    "notes": "'Mineral residue that survives dilute acid treatment' is a full conceptual paraphrase of 'ash insoluble in dilute HCl' -- no shared distinctive vocabulary with the source clause. Parametric check: gpt-oss-20b answered '≈ 0.5%' with no context (citing vague 'peer-reviewed analyses' rather than FSSAI) -- number matches, though sourcing is weak/unverifiable."
+  },
+  {
+    "id": "q13",
+    "question": "What Reichert Meissl value and Polenske value must the fat extracted from Khoa meet?",
+    "ground_truth": "Khoa's extracted fat must meet the same fat-quality standards as ghee: a Reichert Meissl value of at least 24.0 (minimum) and a Polenske value between 0.5 and 2.0.",
+    "source_clauses": [
+      "2.1.6",
+      "2.1.8"
+    ],
+    "chapter": "2.1",
+    "difficulty": "hard",
+    "retrieval_type": "multi_hop",
+    "parametric_known": false,
+    "source_text": "[2.1.6] The extracted fat from Khoa shall meet the standards for Reichert \nMeissl value, Polenske value and Butyro-refractometer reading as \nprescribed for ghee. || [2.1.8] Reichert Meissl \nValue, \nminimum \n24.0  \n24.0 \n24.0 \nPolenske Value \n 0.5 -2.0 \n0.5 -2.0 \n 0.5 -2.0",
+    "notes": "Clause 2.1.6 (Khoa) only says 'meet the standards...as prescribed for ghee' -- the actual numeric values live in clause 2.1.8's Ghee composition table. Cannot be answered from 2.1.6 alone. Parametric check: gpt-oss-20b answered with fabricated ranges (RM 0.9-1.4, Polenske 0.7-1.0) and did not recognize the ghee cross-reference at all -- does not match."
+  },
+  {
+    "id": "q14",
+    "question": "What Reichert Meissl value and Butyro-refractometer reading must the fat extracted from butter meet?",
+    "ground_truth": "Butter's extracted fat must meet ghee's standards: a Reichert Meissl value of at least 24.0 (minimum) and a Butyro-refractometer reading of 40.0 to 44.0 at 40°C.",
+    "source_clauses": [
+      "2.1.9",
+      "2.1.8"
+    ],
+    "chapter": "2.1",
+    "difficulty": "hard",
+    "retrieval_type": "multi_hop",
+    "parametric_known": false,
+    "source_text": "[2.1.9] The extracted fat from butter shall meet the standards for Reichert Meissl \nvalue and Butyro-refractometer reading as prescribed for ghee. || [2.1.8] Reichert Meissl \nValue, \nminimum \n24.0  \n24.0 \n24.0 \n...Butyro-\nrefractometer \nReading at 40 \n˚ C \n40.0 to 44.0 \n40.0 to 44.0 \n40.0 to 44.0",
+    "notes": "Same cross-reference pattern as q13 but for Butter (2.1.9) instead of Khoa (2.1.6), both deferring to Ghee's table in 2.1.8. Parametric check: gpt-oss-20b answered with fabricated, nonsensical values (RM '~1700 mL/g' -- not a valid unit for this test, Butyro '72.5-73.5°') and cited fake regulations -- does not match."
+  },
+  {
+    "id": "q15",
+    "question": "Compare the maximum total ash permitted in Atta (whole wheat flour) versus Maida (refined wheat flour).",
+    "ground_truth": "Atta permits up to 2.0% total ash (on a dry basis), while Maida permits only 1.0% -- Atta's allowance is twice that of Maida.",
+    "source_clauses": [
+      "2.4.1",
+      "2.4.2"
+    ],
+    "chapter": "2.4",
+    "difficulty": "hard",
+    "retrieval_type": "multi_hop",
+    "parametric_known": false,
+    "source_text": "[2.4.1] 2. \nTotal ash, % by mass (on dry \nbasis), Not more than \n2.0 || [2.4.2] 2. \nTotal ash, % on dry mass (not more than) \n1.0",
+    "notes": "Cross-clause comparison shape (plan section 4.4, shape 1): same property (total ash), two distinct clauses (2.4.1 and 2.4.2), values genuinely differ so the comparison is informative rather than trivially equal. Parametric check: gpt-oss-20b answered Atta 2.5% / Maida 1.8%, citing a fake 'IS 15692:2014' standard -- qualitative direction (Atta > Maida) correct but exact values do not match."
+  },
+  {
+    "id": "q16",
+    "question": "What minimum Polenske value is required for coconut oil, and how does that compare with the Polenske value range prescribed for ghee?",
+    "ground_truth": "Coconut oil requires a Polenske value of not less than 13, far above ghee's prescribed range of 0.5 to 2.0 for the same test -- coconut oil's minimum is roughly 6.5x to 26x higher than ghee's entire allowed band, even though both regulations use the identical named test.",
+    "source_clauses": [
+      "2.2.1",
+      "2.1.8"
+    ],
+    "chapter": "2.2 / 2.1",
+    "expected_heading": "OILS (Coconut oil) / Ghee composition table",
+    "page": "2.2.1: p.1; 2.1.8: (primary corpus, see q13/q14 source_text)",
+    "multi_clause_required": true,
+    "difficulty": "hard",
+    "retrieval_type": "cross_chapter_confusion",
+    "source_text": "[2.2.1] Coconut oil ... It shall conform to the following standards: -- Butyro-refractometer reading at 40oC OR Refractive Index at 40oC 34.0 to 35.5 OR 1.4480-1.4500 Saponification value Not less than 250 Iodine value 7.5 to 10. Polenske Value Not less than 13 || [2.1.8] Polenske Value 0.5-2.0, 0.5-2.0, 0.5-2.0 (ghee composition table, see data/qa_set.json q13/q14 source_text for the full ghee table)",
+    "notes": "Deliberate cross-chapter confusable pair: 'Polenske value' is a rare, distinctive lexical anchor that now (post corpus-expansion) appears in exactly two places in the corpus -- Chapter 2.2's coconut oil standard and Chapter 2.1's ghee/khoa/butter fat-quality table (already the basis of q13/q14). A retriever keying purely on the term 'Polenske value' with no other context could easily return the wrong chapter's chunk. Ground truth verified directly against both chunks' stored text in chroma_large; not inferred from any retriever's output."
+  },
+  {
+    "id": "q17",
+    "question": "As of the current regulation, what is the maximum permitted level of trans fatty acids in refined vegetable oil?",
+    "ground_truth": "Not more than 2% by weight. This is the final step of a phased reduction: the limit was originally 5%, reduced to not more than 3% from 1 January 2021, and further reduced to not more than 2% from 1 January 2022.",
+    "source_clauses": [
+      "2.2.1"
+    ],
+    "chapter": "2.2",
+    "expected_heading": "OILS -- Refined vegetable oil (item 16)",
+    "page": 1,
+    "multi_clause_required": false,
+    "difficulty": "medium",
+    "retrieval_type": "exception_condition",
+    "source_text": "16. Refined Vegetable Oil means any vegetable oil which is obtained by expression or solvent extraction ... Moisture shall not exceed 0.10 per cent by weight. Trans fatty acids shall not be more than 5 % by weight. Provided that maximum limit of trans fatty acid shall not be more than 3% by weight, on and from 1st January, 2021 and not more than 2% by weight, on and from 1st January, 2022.",
+    "notes": "Tests whether the system reports the CURRENT (2022-onward) limit rather than the superseded 5% or 3% figures embedded in the same sentence -- a time-phased proviso is a common FSSAI pattern and a common place for naive extraction to grab the wrong number."
+  },
+  {
+    "id": "q18",
+    "question": "What is the maximum peroxide value permitted for cold-pressed and virgin oils (other than olive oil), and how does that compare with the limit for ordinary refined oils?",
+    "ground_truth": "Cold-pressed and virgin oils (except olive oil) may have a peroxide value up to 15 milliequivalents of active oxygen per kg; refined oils (except olive oil) are held to a stricter limit of up to 10 milliequivalents per kg -- cold-pressed/virgin oils are allowed 50% more peroxide value than refined oils.",
+    "source_clauses": [
+      "2.2.8-2.2.9"
+    ],
+    "chapter": "2.2",
+    "expected_heading": "PEROXIDE VALUE OF OILS AND FATS",
+    "page": 55,
+    "multi_clause_required": false,
+    "difficulty": "hard",
+    "retrieval_type": "table_lookup",
+    "source_text": "2.2.8. PEROXIDE VALUE OF OILS AND FATS ... (i) Refined oils up to 10 milliequivalents of active oxygen/kg oil (except olive oil); (ii) Cold pressed and virgin oils up to 15 milliequivalents of active oxygen/kg oil (except olive oil);",
+    "notes": "Both values live in the same stored chunk (clause range 2.2.8-2.2.9), so this is a single-chunk retrieval target, but requires the generator to correctly attribute two different numbers to two different oil-processing categories rather than conflating them."
+  },
+  {
+    "id": "q19",
+    "question": "When making Vanaspati, what is the maximum proportion of refined sal seed fat that is allowed in the total oil mix?",
+    "ground_truth": "Refined sal seed fat, if used, must not exceed 10 per cent of the total oil mix.",
+    "source_clauses": [
+      "2.2.6"
+    ],
+    "chapter": "2.2",
+    "expected_heading": "HYDROGENATED VEGETABLE OILS",
+    "page": 47,
+    "multi_clause_required": false,
+    "difficulty": "easy",
+    "retrieval_type": "lexical",
+    "source_text": "Vanaspati means any refined edible vegetable oil or oils, subjected to a process of hydrogenation ... Refined sal seed fat, if used, shall not be more than 10 per cent of the total oil mix.",
+    "notes": "'Sal seed fat' is a rare, distinctive term with essentially one occurrence in the corpus -- a clean lexical/BM25 anchor."
+  },
+  {
+    "id": "q20",
+    "question": "How does the minimum fat content required for table margarine compare with the minimum fat content required for table butter?",
+    "ground_truth": "Both are numerically identical: table margarine requires a minimum of 80% (mass/mass) fat, and table butter requires a minimum of 80.0% (m/m) milk fat. The percentages match exactly, even though the fat itself comes from entirely different sources (a vegetable-oil-and-water emulsion for margarine vs. milk fat for butter).",
+    "source_clauses": [
+      "2.2.5",
+      "2.1.9"
+    ],
+    "chapter": "2.2 / 2.1",
+    "expected_heading": "MARGARINE AND FAT SPREADS (Table margarine) / Dairy -- Table butter",
+    "page": "2.2.5: p.43; 2.1.9: (primary corpus, see q02 source_text)",
+    "multi_clause_required": true,
+    "difficulty": "hard",
+    "retrieval_type": "cross_chapter_confusion",
+    "source_text": "[2.2.5] Table margarine means an emulsion of edible oils and fats with water ... Fat Not less than 80 per cent mass/mass || [2.1.9, see q02] Table butter ... Milk fat, minimum, %, (m/m) 80.0",
+    "notes": "A 'trap' comparison question: an answer that says one product requires more fat than the other is wrong. The 80% figure is coincidentally identical across two unrelated products/chapters, testing whether the system fabricates a difference to sound more informative rather than reporting the true (null) difference."
+  },
+  {
+    "id": "q21",
+    "question": "What share of jam has to actually be fruit, and are there any exceptions for particular fruits?",
+    "ground_truth": "The prepared fruit content in jam must generally be not less than 45% by weight. Exceptions: strawberry, raspberry, and ginger jams require only a 25% minimum fruit content; cashew apple jam requires a minimum of 23%; and passion fruit jam requires a minimum of only 8%.",
+    "source_clauses": [
+      "2.3.31"
+    ],
+    "chapter": "2.3",
+    "expected_heading": "JAMS, FRUIT JELLIES AND MARMALADES",
+    "page": 36,
+    "multi_clause_required": false,
+    "difficulty": "medium",
+    "retrieval_type": "exception_condition",
+    "source_text": "6. The prepared fruit content in jams, jellies and marmalades shall be not less than 45 per cent by weight, except in strawberry, raspberry and ginger jams when the minimum fruit content shall be not less than 25 per cent by weight. The minimum fruit content for cashew apples shall be 23 per cent and 8 per cent for passion fruit.",
+    "notes": "Everyday phrasing ('share of jam has to actually be fruit') avoids the regulation's own wording ('prepared fruit content'). The multiple named exceptions make this a good test of whether the system reports the general rule only, or captures the exception list completely (partial-exception recall is a realistic generation failure mode)."
+  },
+  {
+    "id": "q22",
+    "question": "What is the minimum acidity, expressed as acetic acid, required in tomato ketchup?",
+    "ground_truth": "Not less than 0.2 percent, expressed as acetic acid.",
+    "source_clauses": [
+      "2.3.27"
+    ],
+    "chapter": "2.3",
+    "expected_heading": "Tomato Ketchup and Tomato Sauce",
+    "page": 33,
+    "multi_clause_required": false,
+    "difficulty": "easy",
+    "retrieval_type": "lexical",
+    "source_text": "(ii) Acidity as acetic acid ... Not less than 0.2 percent",
+    "notes": "Direct numeric lookup; 'tomato ketchup' plus 'acetic acid' is a fairly distinctive combination, though 'acidity expressed as acetic acid' as a phrase recurs across several Chapter 2.3 products (vinegar, sauces), so this also mildly probes whether retrieval returns the tomato-specific clause rather than a sibling condiment clause."
+  },
+  {
+    "id": "q23",
+    "question": "Between squash and cordial, which one is required to have higher total soluble solids?",
+    "ground_truth": "Squash requires a minimum of 40% total soluble solids, while cordial requires only a minimum of 30% -- squash's floor is higher, even though both require the same minimum 25% fruit juice/puree content.",
+    "source_clauses": [
+      "2.3.21"
+    ],
+    "chapter": "2.3",
+    "expected_heading": "Squashes, Crushes, Fruit Syrups/Fruit Sharbats and Barley Water",
+    "page": 29,
+    "multi_clause_required": false,
+    "difficulty": "medium",
+    "retrieval_type": "sibling_disambiguation",
+    "source_text": "Name of the products | Min (%) of fruit juice/puree | Total Soluble Solids Min (%) | Acidity Max (%) -- (1) Squash 25 40 3.5; (2) Crush 25 55 3.5; (3) Fruit Syrup/Fruit Sharbats 25 65 3.5; (4) Cordial 25 30 3.5; (5) Barley Water 25 30 2.5",
+    "notes": "Five closely related sibling products share one table in a single clause; Squash, Crush, Syrup/Sharbat, Cordial and Barley Water all differ only in the Total Soluble Solids column (40/55/65/30/30) while sharing the same 25% fruit-content floor. Good sibling-disambiguation test even though everything needed is in one stored chunk."
+  },
+  {
+    "id": "q24",
+    "question": "How does the minimum fat content required for coconut milk compare with the minimum fat content required for coconut cream?",
+    "ground_truth": "Coconut milk (the standard, non-'light' style) requires a minimum fat content of 10.0% (w/w); coconut cream requires a minimum of 20.0% (and coconut cream concentrate, 29.0%). Coconut cream's fat floor is exactly double that of standard coconut milk.",
+    "source_clauses": [
+      "2.3.51",
+      "2.3.52"
+    ],
+    "chapter": "2.3",
+    "expected_heading": "COCONUT MILK (NON-DAIRY) / COCOCNUT CREAM (NON-DAIRY)",
+    "page": "2.3.51: p.77; 2.3.52: p.79",
+    "multi_clause_required": true,
+    "difficulty": "hard",
+    "retrieval_type": "sibling_disambiguation",
+    "source_text": "[2.3.51] Fat % (w/w) (Minimum): Light coconut milk 5.0, Coconut milk 10.0. || [2.3.52] Fat % (w/w) (Minimum): Coconut cream 20.0, Coconut cream concentrate 29.0.",
+    "notes": "Genuine two-clause (two separate stored chunks) comparison across closely related, easily confused non-dairy coconut products (milk vs. cream vs. their 'light'/concentrate variants) -- four numbers across two clauses, only two of which (10.0 and 20.0) answer this specific question."
+  },
+  {
+    "id": "q25",
+    "question": "Is synthetic vinegar held to a lower acidity standard than fermented (brewed) vinegar?",
+    "ground_truth": "No. Both brewed vinegar and synthetic vinegar must meet the same minimum acidity of 3.75% (calculated as acetic acid, m/v). They differ in how they are made and must be labelled (synthetic vinegar must be labelled 'SYNTHETIC - PREPARED FROM ACETIC ACID'), not in the acidity threshold.",
+    "source_clauses": [
+      "2.3.46"
+    ],
+    "chapter": "2.3",
+    "expected_heading": "VINEGAR",
+    "page": 63,
+    "multi_clause_required": false,
+    "difficulty": "medium",
+    "retrieval_type": "sibling_disambiguation",
+    "source_text": "Brewed Vinegar ... (i) Acidity (m/v) Not less than 3.75 percent calculated as acetic Acid ... Synthetic Vinegar ... (i) Acidity of the product shall not be less than 3.75 percent m/v.",
+    "notes": "A 'trap' question phrased to invite a false 'yes' (the natural assumption that a synthetic/cheaper product is held to a lower bar). Ground truth is that the numeric standard is identical; only manufacturing method and labelling differ."
+  },
+  {
+    "id": "q26",
+    "question": "Which permits more fat: boneless chevon (goat meat) or boneless mutton (sheep meat)?",
+    "ground_truth": "Boneless mutton permits more fat (4% to 10%) than boneless chevon (2% to 4%) -- mutton's upper limit is 2.5x chevon's.",
+    "source_clauses": [
+      "2.5.2"
+    ],
+    "chapter": "2.5",
+    "expected_heading": "Meat and Meat Products",
+    "page": 2,
+    "multi_clause_required": false,
+    "difficulty": "hard",
+    "retrieval_type": "sibling_disambiguation",
+    "source_text": "[Chevon] Boneless meat shall have moisture content between 74% to 76%, protein content between 20% to 22% and fat content between 2% to 4%. ... [Mutton] Boneless meat shall have moisture content between 68% to 72%, protein content between 20% to 22% and fat content between 4% to 10%.",
+    "notes": "Both facts sit inside the same giant merged clause (2.5.2 spans 10 stored parts covering canned meat, sausages, rabbit, pork, beef, chevon, mutton, poultry, marinated and fermented meat products), so this is a single-clause retrieval target by the corpus's clause-label scoring, but a genuine sibling-disambiguation test at the generation level: chevon, mutton, pork and beef each have their own moisture/protein/fat triad in the same clause."
+  },
+  {
+    "id": "q27",
+    "question": "How does the minimum meat content of a fresh sausage compare to that of a dry or fermented sausage?",
+    "ground_truth": "Fresh sausage requires a minimum of 50% meat (w/w); cooked/smoked sausage requires 60%; dry/fermented sausage requires the highest minimum, 65%. Moisture limits move the opposite way: 65% maximum for fresh, down to 50% maximum for dry/fermented.",
+    "source_clauses": [
+      "2.5.2"
+    ],
+    "chapter": "2.5",
+    "expected_heading": "Meat and Meat Products -- Meat Sausages",
+    "page": 2,
+    "multi_clause_required": false,
+    "difficulty": "medium",
+    "retrieval_type": "table_lookup",
+    "source_text": "Parameter | Requirement: Fresh | Cooked/Smoked | Dry/fermented -- Meat, Minimum (w/w) 50% 60% 65%; Moisture, Maximum (w/w) 65% 60% 50%; Total ash, Maximum (w/w) 3% 3% 3%.",
+    "notes": "Requires correctly reading a 3-column table and reporting an inverse relationship (meat minimum rises while moisture maximum falls across the same three sausage types)."
+  },
+  {
+    "id": "q28",
+    "question": "Does the FSSAI definition of 'meat food products' cover things like meat extracts, soups, and stock?",
+    "ground_truth": "No -- meat extracts, soup, stock and meat sauces are explicitly excluded from the definition of 'meat food products', as are products where meat or meat product fragments make up 10% or less of the total weight of the final product.",
+    "source_clauses": [
+      "2.5.1"
+    ],
+    "chapter": "2.5",
+    "expected_heading": "Definition",
+    "page": 1,
+    "multi_clause_required": false,
+    "difficulty": "medium",
+    "retrieval_type": "negative_definition",
+    "source_text": "\"meat food products\" means any product prepared from meat and other ingredients ... but shall not include the following products: (i) Meat extracts, soup, stock and meat sauces; (ii) Products containing fragments of meat, but which contain a quantity of meat or meat product not exceeding ten percent of the total weight of the final product;",
+    "notes": "Tests correct handling of an explicit regulatory EXCLUSION. A system prone to affirming plausible-sounding inclusion (since meat extracts/soup intuitively 'sound like' meat products) would answer 'yes' incorrectly -- a realistic hallucination trap distinct from a simple numeric-lookup failure."
+  },
+  {
+    "id": "q29",
+    "question": "Are the histamine limits for frozen finfish raw material and for quick-frozen breaded fish products actually the same limit, just written differently?",
+    "ground_truth": "Yes. Frozen finfish raw material (for the specified histamine-forming species families) must not exceed 100 mg/kg, while quick-frozen breaded or battered fish products must not exceed 10 mg/100g -- these are numerically identical concentrations (10 mg/100g = 100 mg/kg) expressed in different units.",
+    "source_clauses": [
+      "2.6.1"
+    ],
+    "chapter": "2.6",
+    "expected_heading": "Fish and Fish Products",
+    "page": 1,
+    "multi_clause_required": false,
+    "difficulty": "hard",
+    "retrieval_type": "unit_normalization_trap",
+    "source_text": "(iv) the raw material shall not contain more than 100 mg/Kg of histamine. This shall only apply to species of Carangidae, Chanidae, Clupeidae ... || (8) The products shall not contain more than 10 mg/100 g of histamine based on the average of the sample unit tested.",
+    "notes": "Both figures are in the same giant merged clause (2.6.1, 21 stored parts), so this is a single-clause retrieval target, but a real unit-normalization trap for the generator: mg/kg vs. mg/100g look different but are the same concentration. A system that reports these as 'different limits' or picks only one has failed to normalize units."
+  },
+  {
+    "id": "q30",
+    "question": "What is the maximum naturally occurring formaldehyde level allowed in ordinary marine finfish, and how does that compare to the limit for frozen-stored marine fish products generally?",
+    "ground_truth": "Ordinary marine finfish/crustaceans/molluscs (Group I) are capped at 4.0 mg/kg naturally occurring formaldehyde; all frozen-stored marine fish products (Group IV) are capped at a much higher 100 mg/kg -- 25 times the Group I limit, reflecting that formaldehyde naturally accumulates in certain species during frozen storage.",
+    "source_clauses": [
+      "2.6.2"
+    ],
+    "chapter": "2.6",
+    "expected_heading": "Limit of Formaldehyde",
+    "page": 55,
+    "multi_clause_required": false,
+    "difficulty": "medium",
+    "retrieval_type": "table_lookup",
+    "source_text": "Group - I (Marine): All finfishes ... elasmobranchs, crustaceans and molluscs except those under Group III & IV: 4.0 [mg/kg] ... Group - IV (Frozen Stored marine fish products): All frozen stored marine fish products: 100 [mg/kg]",
+    "notes": "This is clause 2.6.2, a clean, short, single, non-merged clause -- a good contrast case against the giant merged 2.6.1 clause used in q29/q31, useful for separating chunking-granularity effects from genuine retrieval failures during error analysis."
+  },
+  {
+    "id": "q31",
+    "question": "What is the minimum salt content required in fish sauce, expressed as sodium chloride?",
+    "ground_truth": "Not less than 200 g/l, calculated as NaCl.",
+    "source_clauses": [
+      "2.6.1"
+    ],
+    "chapter": "2.6",
+    "expected_heading": "Fish and Fish Products -- Fish Sauce",
+    "page": 1,
+    "multi_clause_required": false,
+    "difficulty": "easy",
+    "retrieval_type": "lexical",
+    "source_text": "Product shall conforms the following chemical properties, namely: ... (d) Salt: not less than 200g/l, calculated as NaCl.",
+    "notes": "'200g/l' plus 'NaCl' plus 'fish sauce' is a fairly distinctive combination, though the same giant 2.6.1 clause also contains a different salt figure for caviar (3-5 g/100g) a few parts earlier -- a mild within-clause sibling trap for the generator even where retrieval trivially succeeds (clause-level match)."
+  },
+  {
+    "id": "q32",
+    "question": "Does bubble gum require more gum content than regular chewing gum?",
+    "ground_truth": "Yes. Chewing gum requires a minimum of 12.5% gum by weight, while bubble gum requires a higher minimum of 14.0% by weight.",
+    "source_clauses": [
+      "2.7.3"
+    ],
+    "chapter": "2.7",
+    "expected_heading": "Chewing gum and bubble gum",
+    "page": 4,
+    "multi_clause_required": false,
+    "difficulty": "medium",
+    "retrieval_type": "sibling_disambiguation",
+    "source_text": "(i) Gum ... Chewing gum: Not less than 12.5 per cent by weight | Bubble gum: Not less than 14.0 per cent by weight",
+    "notes": "Chewing gum and bubble gum share one clause and near-identical wording, differing only in the numeric column -- classic sibling-disambiguation shape, matching the style already used for milk/butter/flour siblings in the original 15."
+  },
+  {
+    "id": "q33",
+    "question": "For a chocolate product to be legally called 'dark chocolate', what minimum percentage of total cocoa solids must it contain, and how much of that has to be cocoa butter?",
+    "ground_truth": "Dark chocolate must contain, on a dry matter basis, not less than 35% total cocoa solids, of which not less than 18% must be cocoa butter (and not less than 14% fat-free cocoa solids).",
+    "source_clauses": [
+      "2.7.4"
+    ],
+    "chapter": "2.7",
+    "expected_heading": "Chocolate",
+    "page": 6,
+    "multi_clause_required": false,
+    "difficulty": "medium",
+    "retrieval_type": "table_lookup",
+    "source_text": "Provided that dark chocolate shall contain, on a dry matter basis, not less than 35 per cent total cocoa solids, of which not less than 18 per cent shall be cocoa butter and not less than 14 per cent fat-free cocoa solids;",
+    "notes": "Requires extracting two nested percentages from one sentence (35% total, of which 18% must be cocoa butter) rather than a single flat number -- more demanding than a simple 'not more than X%' lookup."
+  },
+  {
+    "id": "q34",
+    "question": "What is the maximum acid-insoluble ash allowed in sugar-boiled confectionery, and does that limit change when spices are used as the centre filling?",
+    "ground_truth": "Normally not more than 0.2% by weight; this rises to not more than 0.4% when spices are used as the centre filling -- double the ordinary limit.",
+    "source_clauses": [
+      "2.7.1"
+    ],
+    "chapter": "2.7",
+    "expected_heading": "Sugar boiled confectionery",
+    "page": 1,
+    "multi_clause_required": false,
+    "difficulty": "hard",
+    "retrieval_type": "exception_condition",
+    "source_text": "(ii) Ash insoluble (in dilute Hydrochloric acid) Not more than 0.2 Per cent by weight. Provided that in case of sugar boiled confectionery where spices are used as centre filling, the ash insoluble in dilute Hydrochloric acid shall not be more than 0.4 per cent.",
+    "notes": "'Ash insoluble in dilute HCl' is the exact recurring phrase already used across the entire Chapter 2.9 spice family (q05, q12) and reused verbatim in Chapter 2.7's cocoa clauses (2.7.7, 2.7.8) -- one of the most heavily overloaded phrases in the whole corpus, and a strong candidate for retrieval confusing sugar confectionery, cocoa, and spice clauses. This question additionally has a conditional exception (spice centre filling) that a naive lookup could miss."
+  },
+  {
+    "id": "q35",
+    "question": "What is the maximum caffeine content permitted in carbonated water beverages under FSSAI regulations?",
+    "ground_truth": "Caffeine must not exceed 145 parts per million (ppm) in carbonated water.",
+    "source_clauses": [
+      "2.10.6"
+    ],
+    "chapter": "2.10",
+    "expected_heading": "BEVERAGES NON-ALCOHOLIC -- Carbonated Water",
+    "page": 10,
+    "multi_clause_required": false,
+    "difficulty": "easy",
+    "retrieval_type": "lexical",
+    "source_text": "1. CARBONATED WATER means water conforming to the standards prescribed for Packaged Drinking Water ... and may contain any of the following singly or in combination: ... Caffeine not exceeding 145 parts per million ...",
+    "notes": "This question replaces the now-retired refusal_set.json candidate r_cand06 (Beverages/Chapter 2.10 was 'not ingested' when that refusal set was frozen; the corpus expansion to 9 chapters means Beverages is now genuinely in-scope, so this is a real, verifiable in-corpus question rather than an abstention case). Note the stored chunk label for this clause is the merged range '2.10.5-2.10.6' (2.10.5 was an omitted/repealed sub-clause merged forward); the true regulatory clause for this content is 2.10.6."
+  },
+  {
+    "id": "q36",
+    "question": "What is the permitted range of total caffeine content in caffeinated beverages (energy drinks), and how does that compare to the caffeine limit for carbonated water?",
+    "ground_truth": "Caffeinated beverages (energy drinks) must contain not less than 145 mg/litre and not more than 300 mg/litre of total caffeine from all sources -- a far higher ceiling than carbonated water's flat 145 ppm (~145 mg/L) cap. Notably, the energy drink's REQUIRED MINIMUM (145 mg/L) equals carbonated water's ENTIRE MAXIMUM (145 ppm).",
+    "source_clauses": [
+      "2.10.8-2.10.9",
+      "2.10.6"
+    ],
+    "chapter": "2.10",
+    "expected_heading": "Caffeinated Beverages (essential composition) / Carbonated Water",
+    "page": "12 (caffeinated beverages); 10 (carbonated water)",
+    "multi_clause_required": true,
+    "difficulty": "hard",
+    "retrieval_type": "cross_chapter_confusion",
+    "source_text": "(II) Essential Composition: It shall contain not less than 145 mg per liter and not more than 300 mg per litre total caffeine from whatever sources it may be derived in the formulation of the product. || [2.10.6] Caffeine not exceeding 145 parts per million",
+    "notes": "Source-numbering caveat: the caffeinated-beverage text lives inside a stored chunk labelled '2.10.8-2.10.9' that also contains Mineral Water (2.10.7) and Packaged Drinking Water (2.10.8) content -- the source PDF's numbering around 2.10.7-2.10.9 is entangled by an amendment/renumbering artifact (an explicit '23[2.10.8 Packaged Drinking Water...]' marker appears later in the same merged chunk). Rather than guess a disambiguated sub-number, source_clauses cites the literal stored chunk label plus the unambiguous 2.10.6 clause. This is intentionally a hard cross-topic numeric coincidence (145 appears as a maximum in one product and a minimum in another) -- a strong test of whether the generator conflates the two limits."
+  },
+  {
+    "id": "q37",
+    "question": "In packaged drinking water (other than mineral water), what is the maximum permitted nitrate level, and how does that compare with the fluoride limit?",
+    "ground_truth": "Nitrate (as NO3): maximum 45 mg/l. Fluoride (as F): maximum 1.0 mg/l. The permitted nitrate concentration is 45 times higher than the permitted fluoride concentration.",
+    "source_clauses": [
+      "2.10.8-2.10.9"
+    ],
+    "chapter": "2.10",
+    "expected_heading": "Packaged Drinking Water (other than Mineral Water)",
+    "page": 12,
+    "multi_clause_required": false,
+    "difficulty": "medium",
+    "retrieval_type": "table_lookup",
+    "source_text": "5. Nitrate (as NO3) mg/l, Max: 45 ... 7. Fluoride (as F), mg/l, Max: 1.0",
+    "notes": "Both values are in the same stored chunk (see q36's note on the entangled 2.10.7-2.10.9 numbering in this part of the source PDF), so single-clause retrieval target; tests correct pairing of two of the ~25 rows in this long water-quality table."
+  },
+  {
+    "id": "q38",
+    "question": "Which requires more protein: Multigrain Flour (Atta) or Mixed Millet Flour?",
+    "ground_truth": "Multigrain Flour (Atta) requires more protein: a minimum of 10.0% (N x 6.25, dry basis), versus Mixed Millet Flour's minimum of 8.0% -- a 2 percentage-point difference.",
+    "source_clauses": [
+      "2.4.37",
+      "2.4.38"
+    ],
+    "chapter": "2.4",
+    "expected_heading": "Multigrain flour (atta) / Mixed Millet Flour",
+    "page": "2.4.37: p.81; 2.4.38: p.82",
+    "multi_clause_required": true,
+    "difficulty": "hard",
+    "retrieval_type": "sibling_disambiguation",
+    "source_text": "[2.4.37] Protein (N x 6.25), % by mass (on dry basis), Not less than 10.0 || [2.4.38] Protein (N x 6.25), % by mass (on dry basis), Not less than 8.0",
+    "notes": "Adjacent flour-family clauses (already flagged as mutual distractors in the original q04's notes) -- this question makes that comparison explicit and requires two separate stored clauses, unlike q04 which only needs 2.4.4. Both clauses were already part of the original 3-chapter/124-chunk corpus, so this question is answerable on either the small or large collection; it is included in the new-questions set because it was never asked in the original 15."
+  },
+  {
+    "id": "q39",
+    "question": "Which has the stricter (lower) maximum acid-insoluble-ash limit: powdered cloves or cocoa powder?",
+    "ground_truth": "Powdered cloves has the stricter limit: not more than 0.5% acid-insoluble ash, versus cocoa powder's not more than 1.0% (on a moisture- and fat-free basis) -- cocoa powder is allowed double the acid-insoluble ash of ground cloves.",
+    "source_clauses": [
+      "2.9.6",
+      "2.7.7"
+    ],
+    "chapter": "2.9 / 2.7",
+    "expected_heading": "Cloves (Laung) / Cocoa Powder",
+    "page": "2.9.6: p.10; 2.7.7: p.12",
+    "multi_clause_required": true,
+    "difficulty": "hard",
+    "retrieval_type": "cross_chapter_confusion",
+    "source_text": "[2.9.6] (iii) Ash insoluble in dilute HCl on dry basis. Not more than 0.5 percent by weight (see data/qa_set.json q12) || [2.7.7] Acid insoluble ash by weight (on moisture and fat-free basis) Not more than 1.0 [for Cocoa Powder, Fat-reduced cocoa powder, and Highly Fat-reduced cocoa powder alike]",
+    "notes": "True cross-CHAPTER confusion pair (spices, Chapter 2.9, vs. confectionery/cocoa, Chapter 2.7) using the same near-universal phrase 'ash insoluble in dilute HCl' / 'acid insoluble ash' that recurs at least a dozen times across the corpus (2.9's entire spice family, 2.7.1, 2.7.7, 2.7.8) -- see also q34's note on this phrase's overload. Reuses q12's already-verified 2.9.6 figure rather than re-deriving it, and cross-checks it against the independently-verified 2.7.7 figure above."
+  },
+  {
+    "id": "q40",
+    "question": "Is a manufacturer allowed to tint hydrogenated vegetable oil (Vanaspati) so that it looks like ghee?",
+    "ground_truth": "No. No colour may be added to hydrogenated vegetable oil (Vanaspati) that would resemble the colour of ghee, and if any flavour is used it must be distinct from ghee's flavour, drawn from a list of permissible flavours prescribed by the Government.",
+    "source_clauses": [
+      "2.2.6"
+    ],
+    "chapter": "2.2",
+    "expected_heading": "HYDROGENATED VEGETABLE OILS",
+    "page": 47,
+    "multi_clause_required": false,
+    "difficulty": "medium",
+    "retrieval_type": "semantic",
+    "source_text": "(ii) No colour shall be added to hydrogenated vegetable oil unless so authorised by Government, but in no event any colour resembling the colour of ghee shall be added; (iii) If any flavour is used, it shall be distinct from that of ghee in accordance with a list of permissible flavours and in such quantities as may be prescribed by Government:",
+    "notes": "Everyday/non-legal phrasing ('tint ... so that it looks like ghee') deliberately avoids the regulation's own vocabulary ('colour', 'resembling'). This is a prohibition/negative-permission question (answer is 'no'), testing the same hallucination-toward-plausible-affirmation failure mode as q28, in a different chapter."
+  }
+]
